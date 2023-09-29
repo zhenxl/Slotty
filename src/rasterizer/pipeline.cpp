@@ -356,20 +356,89 @@ void Pipeline<p, P, flags>::rasterize_line(
 		assert(0 && "rasterize_line should only be invoked in flat interpolation mode.");
 	}
 	// A1T2: rasterize_line
-
+	auto delta = vb.fb_position.xy() - va.fb_position.xy();
 	// TODO: Check out the block comment above this function for more information on how to fill in
 	// this function!
 	// The OpenGL specification section 3.5 may also come in handy.
+	// Check for a horizontal line
+	int x = static_cast<int>(va.fb_position.x);
+	int y = static_cast<int>(va.fb_position.y);
+    if (delta.y == 0.0f) {
+        // Handle horizontal line here
+        int start_x = static_cast<int>(std::min(va.fb_position.x, vb.fb_position.x));
+        int end_x   = static_cast<int>(std::max(va.fb_position.x, vb.fb_position.x));
+        for (float x = start_x + 0.5f; x <= end_x + 0.5; x += 1.0f) {
+            Fragment frag;
+            frag.fb_position.x = x;
+			frag.fb_position.y = y + 0.5f;
+            frag.fb_position.z = va.fb_position.z + (vb.fb_position.z - va.fb_position.z) * ((x - va.fb_position.x) / delta.x);
+            frag.attributes = va.attributes;
+            frag.derivatives.fill(Vec2(0.0f, 0.0f));
+            emit_fragment(frag);
+        }
+    } else if (delta.x == 0.0f) {
+		int start_y = static_cast<int>(std::min(va.fb_position.y, vb.fb_position.y));
+        int end_y   = static_cast<int>(std::max(va.fb_position.y, vb.fb_position.y));
+        for (float y = start_y + 0.5f; y <= end_y + 0.5; y+= 1.0f) {
+            Fragment frag;
+            frag.fb_position.y = y;
+			frag.fb_position.x = x + 0.5f;
+            frag.fb_position.z = va.fb_position.z + (vb.fb_position.z - va.fb_position.z) * ((y - va.fb_position.y) / delta.y);
+            frag.attributes = va.attributes;
+            frag.derivatives.fill(Vec2(0.0f, 0.0f));
+            emit_fragment(frag);
+        }
+	} else {
+		auto emit_frag = [&](int x, int y) {
+			Fragment frag;
+			frag.fb_position.x = static_cast<float>(x) + 0.5f;
+			frag.fb_position.y = static_cast<float>(y) + 0.5f;
+			frag.fb_position.z = va.fb_position.z + 
+								(vb.fb_position.z - va.fb_position.z) * 
+								((static_cast<float>(y) - va.fb_position.y) / (static_cast<float>(x) - va.fb_position.x));
+			frag.attributes = va.attributes;
+			frag.derivatives.fill(Vec2(0.0f, 0.0f));
+			emit_fragment(frag);
+		};
+		// bool steep = dy > dx;
+		int x0 = static_cast<int>(va.fb_position.x);
+		int y0 = static_cast<int>(va.fb_position.y);
+		int x1 = static_cast<int>(vb.fb_position.x);
+		int y1 = static_cast<int>(vb.fb_position.y);
+		bool steep = abs(y1 - y0) > abs(x1 - x0);
+		if (steep) {
+			std::swap(x0, y0);
+			std::swap(x1, y1);
+		}
 
-	{ // As a placeholder, draw a point in the middle of the line:
-		//(remove this code once you have a real implementation)
-		Fragment mid;
-		mid.fb_position = (va.fb_position + vb.fb_position) / 2.0f;
-		mid.attributes = va.attributes;
-		mid.derivatives.fill(Vec2(0.0f, 0.0f));
-		emit_fragment(mid);
+		if (x0 > x1) {
+			std::swap(x0, x1);
+			std::swap(y0, y1);
+		}
+		float dy = abs(y1 - y0);
+		float dx = x1 - x0;
+		float error = 0.0f;
+		float delta_err = dy/ dx;
+		int ystep;
+		int y = y0;
+		if (y0 < y1) {
+			ystep = 1;
+		} else {
+			ystep = -1;
+		}
+		for (int x = x0; x < x1; x++) {
+			if(steep) {
+				emit_frag(y, x);
+			} else {
+				emit_frag(x, y);
+			}
+			error += delta_err;
+			if (fabsf(error) >= 0.5) {
+				y += ystep;
+				error -= 1.0f;
+			}
+		}
 	}
-
 }
 
 /*
