@@ -15,13 +15,13 @@
 		},
 		"Transform":{
 			"parent":null,
-			"translation":[-0.75,0,0],
+			"translation":[-0.7001179456710815,0,0],
 			"rotation":[0,-0.3420200943946838,0,0.9396926164627075],
 			"scale":[1,1,1]
 		},
 		"Transform 1":{
 			"parent":null,
-			"translation":[0.75,0,0],
+			"translation":[0.8081729412078857,0,0],
 			"rotation":[0,-0.3420200943946838,0,0.9396926164627075],
 			"scale":[1,1,1]
 		},
@@ -90,7 +90,7 @@
 				"visible":true,
 				"collides":true,
 				"draw style":"Flat",
-				"blend style":"Blend Replace",
+				"blend style":"Blend Add",
 				"depth style":"Depth Less"
 			},
 			"Mesh Instance 1":{
@@ -110,7 +110,7 @@
 				"visible":true,
 				"collides":true,
 				"draw style":"Correct",
-				"blend style":"Blend Replace",
+				"blend style":"Blend Over",
 				"depth style":"Depth Less"
 			}
 		},

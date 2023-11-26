@@ -7,7 +7,7 @@
 
 #include "../lib/mathlib.h"
 #include "../scene/texture.h"
-
+#include <iostream>
 namespace Programs {
 
 struct Lambertian {
@@ -111,7 +111,7 @@ struct Lambertian {
 		Vec2 fdy_texcoord{fd[FA_TexCoordU].y, fd[FA_TexCoordV].y};
 
 		// size of texture image:
-		[[maybe_unused]] Vec2 wh =
+		Vec2 wh =
 			Vec2(float(parameters.image->image.w), float(parameters.image->image.h));
 
 		//-----
@@ -122,12 +122,28 @@ struct Lambertian {
 		//  --> 'lod' is \lambda_base from equation (3.17)
 		// reading onward, you will discover that \rho can be computed in a number of ways
 		//  it is up to you to select one that makes sense in this context
-
-		float lod = 0.0f; //<-- replace this line
-		//-----
-
+		// Vec2 max_derivative = Vec2(
+		// 	std::max(std::abs(fdx_texcoord.x * wh.x), std::abs(fdy_texcoord.x * wh.x)),
+		// 	std::max(std::abs(fdx_texcoord.y * wh.y), std::abs(fdy_texcoord.y * wh.y))
+		// );
+		float L;
+		Vec2 fdx_texcoord_scaled = fdx_texcoord * wh.x;
+		Vec2 fdy_texcoord_scaled = fdy_texcoord * wh.y;
+		if (fdx_texcoord == Vec2(0, 0)) {
+			if (fdy_texcoord == Vec2(0, 0)) {
+				L = 1;
+			} else {
+				L = std::sqrt(
+					std::sqrt(fdy_texcoord_scaled.x * fdy_texcoord_scaled.y + fdy_texcoord_scaled.y * fdy_texcoord_scaled.y));
+			}
+		} else {
+			L = std::max(
+				  std::sqrt(fdx_texcoord_scaled.x * fdx_texcoord_scaled.x + fdx_texcoord_scaled.y * fdx_texcoord_scaled.y),
+				  std::sqrt(fdy_texcoord_scaled.x * fdy_texcoord_scaled.y + fdy_texcoord_scaled.y * fdy_texcoord_scaled.y)
+				  );
+		}
+		float lod = std::log2(L);
 		Vec3 normal = fa_normal.unit();
-
 		Spectrum light =
 			// sun contribution:
 			parameters.sun_energy * std::max(dot(parameters.sun_direction, normal), 0.0f)

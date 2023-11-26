@@ -23,7 +23,7 @@
 			"film.height":150,
 			"film.samples":256,
 			"film.max_ray_depth":8,
-			"film.sample_pattern":"Grid (8x8)"
+			"film.sample_pattern":"Center"
 		}
 	},
 	"meshes":{

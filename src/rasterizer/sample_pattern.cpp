@@ -1,5 +1,7 @@
 #include "sample_pattern.h"
 
+
+
 std::vector<SamplePattern> const& SamplePattern::all_patterns() {
 	// helper to make grid-like sampling patterns:
 	auto Grid = [](uint32_t w, uint32_t h = -1U, uint32_t id = -1U) {

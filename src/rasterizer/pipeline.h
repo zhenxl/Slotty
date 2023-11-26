@@ -11,6 +11,7 @@
 #include "../lib/vec2.h"
 #include "../lib/vec3.h"
 #include "../lib/vec4.h"
+#include "../Config.h"
 
 struct Framebuffer;
 
@@ -68,6 +69,7 @@ struct ClippedVertex {
 	std::array< float, FA > attributes; //attributes to pass to fragment program
 };
 
+
 // Clipped vertices are rasterized to create fragments:
 template<uint32_t FA, uint32_t FD>
 struct Fragment {
@@ -107,6 +109,34 @@ struct Pipeline {
 	//(2) transforms these vertices via Program::shade_vertex to produce ShadedVertices:
 	using ShadedVertex = ::ShadedVertex<FA>;
 
+	struct Polygon {
+	Polygon()
+	{
+		vertices.reserve(3);
+	}
+
+	struct Point {
+		Vec4 pos;
+		Vec3 distance;
+	}
+
+	[[nodiscard]] uint32_t Size() const { return points.size(); }
+	CFG_FORCE_INLINE void Clear() { points.clear(); }
+	CFG_FORCE_INLINE void Add(const Point& point) { points.push_back(point); }
+	CFG_FORCE_INLINE Point& operator [](const size_t i) { return points[i]; }
+	CFG_FORCE_INLINE const Point& operator [](const size_t i) const { return points[i]; }
+
+	void SetFromTriangle(const Vec4& v0, const Vec4& v1, const Vec4& v2) {
+		vertices.emplace_back(Point{v0, {1, 0, 0}});
+		vertices.emplace_back(v1, {0, 1, 0});
+		vertices.emplace_back(v2, {0, 0, 1});
+	}
+
+
+	private:
+	std::vector<Point> vertices;
+	};
+
 	// helper for clip functions:
 	//  returns (b - a) * t + a
 	static ShadedVertex lerp(ShadedVertex const& a, ShadedVertex const& b, float t);
@@ -118,10 +148,15 @@ struct Pipeline {
 		ShadedVertex const &a, ShadedVertex const &b, //input line (a,b)
 		std::function< void(ShadedVertex const &) > const &emit_vertex //called with vertices of clipped line (if non-empty)
 	);
+
+	static uint32_t GetClipCode(ShadedVertex const &a);
+	
 	static void clip_triangle(
 		ShadedVertex const &a, ShadedVertex const &b, ShadedVertex const &c, //input triangle (a,b,c)
 		std::function< void(ShadedVertex const &) > const &emit_vertex //called with vertices of clipped triangle(s)
 	);
+
+	static Polygon SutherlandHodgman_clip_triangle(const Vec4& a, const Vec4 &b, const Vec4&c, uint32_t code);
 
 	//(5) divides by w and scales to compute positions in the framebuffer:
 	using ClippedVertex = ::ClippedVertex<FA>;

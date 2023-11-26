@@ -7,6 +7,30 @@
 #include "pipeline.h"
 #include "programs.h"
 #include "sample_pattern.h"
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void print_backtrace() {
+    void* array[10];
+    size_t size;
+    char** strings;
+
+    // 获取函数调用的backtrace
+    size = backtrace(array, 10);
+
+    // 获取backtrace的符号信息
+    strings = backtrace_symbols(array, size);
+
+    printf("Backtrace:\n");
+    for (size_t i = 0; i < size; i++) {
+        printf("%s\n", strings[i]);
+    }
+
+    // 释放backtrace_symbols函数分配的内存
+    free(strings);
+}
+
 
 struct RasterJob {
 	// used to tell the job to quit early:
@@ -360,7 +384,7 @@ struct RasterJob {
 
 	// actually run the raster job:
 	void run() {
-
+		// print_backtrace();
 		// helper function that caches triangle attributes for using Programs::Lambertian to draw a
 		// mesh's triangles:
 		auto make_lamb_triangles = [](Mesh* mesh) {
