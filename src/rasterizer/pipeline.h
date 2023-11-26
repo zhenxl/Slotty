@@ -98,6 +98,9 @@ struct Pipeline {
 	enum { FA = Program::FA }; // fragment attribute count
 	enum { FD = Program::FD }; // fragment attribute derivative count
 
+	using Predicate = std::function<bool(const Vec4&)>;
+	using Clip      = std::function<void(Vec4&)>;
+
 	static_assert(uint32_t(FD) <= uint32_t(FA),
 	              "Program requests no more derivatives than attributes.");
 
@@ -112,13 +115,13 @@ struct Pipeline {
 	struct Polygon {
 	Polygon()
 	{
-		vertices.reserve(3);
+		points.reserve(3);
 	}
 
 	struct Point {
 		Vec4 pos;
 		Vec3 distance;
-	}
+	};
 
 	[[nodiscard]] uint32_t Size() const { return points.size(); }
 	CFG_FORCE_INLINE void Clear() { points.clear(); }
@@ -127,15 +130,16 @@ struct Pipeline {
 	CFG_FORCE_INLINE const Point& operator [](const size_t i) const { return points[i]; }
 
 	void SetFromTriangle(const Vec4& v0, const Vec4& v1, const Vec4& v2) {
-		vertices.emplace_back(Point{v0, {1, 0, 0}});
-		vertices.emplace_back(v1, {0, 1, 0});
-		vertices.emplace_back(v2, {0, 0, 1});
+		points.emplace_back(Point{v0, Vec3{1, 0, 0}});
+		points.emplace_back(Point{v1, Vec3{0, 1, 0}});
+		points.emplace_back(Point{v2, Vec3{0, 0, 1}});
 	}
 
 
 	private:
-	std::vector<Point> vertices;
+	std::vector<Point> points;
 	};
+
 
 	// helper for clip functions:
 	//  returns (b - a) * t + a
@@ -157,6 +161,8 @@ struct Pipeline {
 	);
 
 	static Polygon SutherlandHodgman_clip_triangle(const Vec4& a, const Vec4 &b, const Vec4&c, uint32_t code);
+
+	static Polygon clip_plane(uint32_t plane, const Polygon&, const Predicate&, const Clip&);
 
 	//(5) divides by w and scales to compute positions in the framebuffer:
 	using ClippedVertex = ::ClippedVertex<FA>;

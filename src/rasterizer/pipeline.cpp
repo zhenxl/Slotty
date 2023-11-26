@@ -8,13 +8,13 @@
 #include "sample_pattern.h"
 #include "framebuffer.h"
 
-uint32_t INSIDE_BIT = 0;
-uint32_t LEFT_BIT = 1 << 0;
-uint32_t RIGHT_BIT = 1 << 1;
-uint32_t BOTTOM_BIT = 1 << 2;
-uint32_t TOP_BIT = 1 << 3;
-uint32_t FAR_BIT = 1 << 5;
-uint32_t NEAR_BIT = 1 << 4;
+static uint32_t INSIDE_BIT = 0;
+static uint32_t LEFT_BIT = 1 << 0;
+static uint32_t RIGHT_BIT = 1 << 1;
+static uint32_t BOTTOM_BIT = 1 << 2;
+static uint32_t TOP_BIT = 1 << 3;
+static uint32_t FAR_BIT = 1 << 5;
+static uint32_t NEAR_BIT = 1 << 4;
 
 template<PrimitiveType primitive_type, class Program, uint32_t flags>
 void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& vertices,
@@ -336,13 +336,13 @@ uint32_t Pipeline<p, P, flags>::GetClipCode(ShadedVertex const &a) {
 	if (v.y < -v.w) code |= BOTTOM_BIT;
 	if (v.y > v.w) code |= TOP_BIT;
 	if (v.z > v.w) code |= FAR_BIT;
-	if (v.z < -v.w)code |= NEAR_BIT;
+	if (v.z < 0.0)code |= NEAR_BIT;
 
 	return code;
 }
 
 template<PrimitiveType p, class P, uint32_t flags>
-Pipeline<p, P, flags>::Polygon Pipeline<p, P, flags>::SutherlandHodgman_clip_triangle(const Vec4 &a, const Vec4 &b, const Vec4 &c, uint32_t code) {
+auto Pipeline<p, P, flags>::SutherlandHodgman_clip_triangle(const Vec4 &a, const Vec4 &b, const Vec4 &c, uint32_t code)-> Polygon {
 	Polygon polygon{};
 	polygon.SetFromTriangle(a, b, c);
 
@@ -363,8 +363,68 @@ Pipeline<p, P, flags>::Polygon Pipeline<p, P, flags>::SutherlandHodgman_clip_tri
 	}
 
 	if (code & FAR_BIT) {
-		
+
 	}
+
+	for(int i = 0 ; i < polygon.Size(); i++) {
+		if (polygon[i].pos.w <= 0.0f) {
+			polygon.Clear();
+			break;
+		}
+	}
+	return polygon;
+}
+
+CFG_FORCE_INLINE float Dot(uint32_t planeCode, const Vec4& v){
+	if (planeCode & LEFT_BIT) return v.x + v.w; /* v * (1 0 0 1)  */
+	if (planeCode & RIGHT_BIT) return v.x - v.w; /* v * (-1 0 0 1) */
+	if (planeCode & BOTTOM_BIT) return v.y + v.w; /* v * (0 -1 0 1) */
+	if (planeCode & TOP_BIT) return v.y - v.w; /* v * (0 1 0 1)  */
+	if (planeCode & FAR_BIT) return v.z - v.w; /* v * (0 0 -1 0) */
+	if (planeCode & NEAR_BIT) return v.z; /* v * (0 0 1 1)  */
+
+	return INFINITY;
+}
+
+CFG_FORCE_INLINE float Point2PlaneDistance(
+		uint32_t clipPlane, const Vec4& a, const Vec4& b) {
+	{
+		return Dot(clipPlane, a) / (Dot(clipPlane, a) - Dot(clipPlane, b));
+	}
+}
+
+
+
+template<PrimitiveType p, class P, uint32_t flags>
+CFG_FORCE_INLINE auto Pipeline<p, P, flags> :: clip_plane(uint32_t plane, const Polygon& inPolygon, const Predicate& isInside, const Clip& clip) -> Polygon {
+	Polygon outPolygon;
+	
+	for(uint32_t i = 0, j = 1; i < inPolygon.Size(); i++, j++) {
+		if (j == inPolygon.Size()) j = 0;
+
+		const auto& aPos = inPolygon[i].pos;
+		const auto& aDist = inPolygon[i].distance;
+
+		// Point B on the segment
+		const auto& bPos = inPolygon[j].pos;
+		const auto& bDist = inPolygon[j].distance;
+
+		float t = Point2PlaneDistance(plane, aPos, bPos);
+		Vec4 newPos = aPos * (1 -t) + bPos * t;
+		const Vec3 newDist = aDist * (1 - t) + bDist * t;
+		clip(newPos);
+		if (isInside(aPos)) {
+			if (isInside(bPos)) {
+				outPolygon.Add(typename Polygon::Point{bPos, bDist});
+			} else {
+				outPolygon.Add(typename Polygon::Point{newPos, newDist});
+			}
+		} else if (isInside(bPos)) {
+			outPolygon.Add(typename Polygon::Point{ newPos, newDist });
+			outPolygon.Add(typename Polygon::Point{ bPos, bDist });
+		}
+	}
+	return outPolygon;
 }
 
 /*
