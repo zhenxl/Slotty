@@ -222,8 +222,104 @@ std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::bisect_edge(EdgeRef e) {
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::split_edge(EdgeRef e) {
 	// A2L2 (REQUIRED): split_edge
 	
-	(void)e; //this line avoids 'unused parameter' warnings. You can delete it as you fill in the function.
-    return std::nullopt;
+	// (void)e; //this line avoids 'unused parameter' warnings. You can delete it as you fill in the function.
+
+	// if (e->isBoundary()) return e->halfedge()->vertex();
+	auto v = bisect_edge(e);
+
+	if (v.has_value()) {
+		if (e->on_boundary()) {
+			VertexRef v0 = v.value();
+			HalfedgeRef h0 = v0->halfedge;
+			if (h0->face == faces.end()) {
+				h0 = h0->twin;
+			}
+			HalfedgeRef h1 = h0->next;
+			HalfedgeRef h2 = h1->next;
+			HalfedgeRef h4 = h0->twin->next->twin;
+			
+			// VertexRef v0 = h0->vertex;
+			VertexRef v4 = h2->vertex;
+
+			FaceRef f0 = h2->face;
+
+			FaceRef f2 = emplace_face();
+			EdgeRef e1 = emplace_edge();
+
+			HalfedgeRef h10 = emplace_halfedge();
+			HalfedgeRef h11 = emplace_halfedge();
+
+			h0->set_tnvef(h0->twin, h1, v0, h0->edge, f2);
+			h1->set_tnvef(h1->twin, h10, h1->vertex, h1->edge, f2);
+			h10->set_tnvef(h11, h0, v4, e1, f2);
+
+			f2->halfedge = h0;
+			e1->halfedge = h10;
+
+			h4->next = h11;
+			h11->set_tnvef(h10, h2, v0, e1, f0);
+			f0->halfedge = h11;
+			return v0;
+		} else {
+			VertexRef v0 = v.value();
+			HalfedgeRef h0 = v0->halfedge;
+			HalfedgeRef h1 = h0->next;
+			auto h2 = h1->next;
+
+			auto h5 = h0->twin;
+			auto h6 = h5->next;
+			auto h4 = h6->twin;
+
+			auto h7 = h6->next;
+			auto h8 = h7->next;
+
+			VertexRef v1 = h5->vertex;
+			VertexRef v2 = h7->vertex;
+
+			VertexRef v3 = h8->vertex;
+			VertexRef v4 = h2->vertex;
+
+			FaceRef f0 = h4->face;
+			FaceRef f1 = h8->face;
+
+			EdgeRef e1 = emplace_edge();
+			EdgeRef e2 = emplace_edge();
+
+			FaceRef f2 = emplace_face();
+			FaceRef f3 = emplace_face();
+
+			HalfedgeRef h10 = emplace_halfedge();
+			HalfedgeRef h11 = emplace_halfedge();
+
+			HalfedgeRef h12 = emplace_halfedge();
+			HalfedgeRef h13 = emplace_halfedge();
+
+			h4->next = h11;
+			h11->set_tnvef(h10, h2, v0, e1, f0);
+
+			h10->set_tnvef(h11, h0, v4, e1, f2);
+			h0->set_tnvef(h5, h1, v0, h0->edge, f2);
+			h1->set_tnvef(h1->twin, h10, v1, h1->edge, f2);
+			e1->halfedge = h10;
+			f0->halfedge = h4;
+			f2->halfedge = h0;
+
+			h5->next = h12;
+			h12->set_tnvef(h13, h8, v0, e2, f1);
+
+			h13->set_tnvef(h12, h6, v3, e2, f3);
+			h6->set_tnvef(h4, h7, v0, h6->edge, f3);
+			h7->set_tnvef(h7->twin, h13, v2, h7->edge, f3);
+
+			e2->halfedge = h13;
+			f1->halfedge = h5;
+			f3->halfedge = h6;
+
+			return v0;
+		}
+	} else {
+		 return std::nullopt;
+	}
 }
 
 
@@ -331,8 +427,66 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
  */
 std::optional<Halfedge_Mesh::EdgeRef> Halfedge_Mesh::flip_edge(EdgeRef e) {
 	//A2L1: Flip Edge
+	if (e->on_boundary()) {
+		return std::nullopt;
+	}
 	
-    return std::nullopt;
+	HalfedgeRef h0 = e->halfedge;
+	HalfedgeRef h1 = h0->twin;
+
+	HalfedgeRef h2 = h0->next;
+	HalfedgeRef h3 = h2->twin;
+
+	HalfedgeRef h4 = h2->next;
+	// HalfedgeRef h5 = h4->twin;
+
+	HalfedgeRef h6 = h0->before();
+	// HalfedgeRef h7 = h6->twin;
+
+	HalfedgeRef h8 = h1->next;
+	HalfedgeRef h9 = h8->twin;
+
+	HalfedgeRef h10 = h8->next;
+	// HalfedgeRef h11 = h10->next;
+
+	HalfedgeRef h12 = h1->before();
+	// HalfedgeRef h13 = h12->twin;
+
+	VertexRef v0 = h0->vertex;
+	VertexRef v1 = h2->vertex;
+	VertexRef v2 = h9->vertex;
+	VertexRef v3 = h3->vertex;
+
+	FaceRef f0  = h0->face;
+	FaceRef f1  = h1->face;
+
+	// phase3 re connect
+	h6->next = h8;
+	h8->next = h0;
+	h0->next = h4;
+	h8->face = f0;
+
+	h12->next = h2;
+	h2->next  = h1;
+	h1->next  = h10;
+	h2->face  = f1;
+
+	h0->vertex = v2;
+	h1->vertex = v3;
+
+	if (v0 ->halfedge == h0) {
+		v0->halfedge = h8;
+	}
+
+	if (v1->halfedge == h1) {
+		v1->halfedge = h2;
+	}
+
+
+	// TODO This method should split the given edge and return an iterator to the newly inserted vertex.
+	// TODO The halfedge of this vertex should point along the edge that was split, rather than the new edges.
+
+	return e;
 }
 
 

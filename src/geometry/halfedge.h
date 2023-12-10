@@ -308,6 +308,16 @@ public:
 			twin = twin_; next = next_; vertex = vertex_; edge = edge_; face = face_;
 		}
 
+		HalfedgeRef before() {
+			HalfedgeRef next = this->next;
+			HalfedgeRef ret;
+			while(next->id != this->id) {
+				ret = next;
+				next = next->next;
+			}
+			return ret;
+		}
+
 
 	private:
 		Halfedge(uint32_t id_) : id(id_) { }

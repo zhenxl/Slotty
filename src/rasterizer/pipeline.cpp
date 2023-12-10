@@ -7,6 +7,7 @@
 #include "../lib/mathlib.h"
 #include "sample_pattern.h"
 #include "framebuffer.h"
+#include <functional>
 
 static uint32_t INSIDE_BIT = 0;
 static uint32_t LEFT_BIT = 1 << 0;
@@ -83,11 +84,6 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 		cv.attributes = sv.attributes;
 		clipped_vertices.emplace_back(cv);
 	};
-
-	for(ShadedVertex& sv: shaded_vertices) {
-		std::cout << "clip position: " <<  sv.clip_position.xyz() << std::endl;
-		std::cout << "clip position w: " <<  sv.clip_position.w << std::endl;
-	}
 
 	// actually do clipping:
 	if constexpr (primitive_type == PrimitiveType::Lines) {
@@ -336,7 +332,7 @@ uint32_t Pipeline<p, P, flags>::GetClipCode(ShadedVertex const &a) {
 	if (v.y < -v.w) code |= BOTTOM_BIT;
 	if (v.y > v.w) code |= TOP_BIT;
 	if (v.z > v.w) code |= FAR_BIT;
-	if (v.z < 0.0)code |= NEAR_BIT;
+	if (v.z < -v.w)code |= NEAR_BIT;
 
 	return code;
 }
@@ -347,24 +343,47 @@ auto Pipeline<p, P, flags>::SutherlandHodgman_clip_triangle(const Vec4 &a, const
 	polygon.SetFromTriangle(a, b, c);
 
 	if (code & LEFT_BIT) {
-
+		polygon = clip_plane(
+			LEFT_BIT, polygon,
+			[](const Vec4& v) { return v.x >= -v.w; },
+			[](Vec4& v) { v.x = -v.w; });
 	}
 
 	if (code & RIGHT_BIT) {
-
+		polygon = clip_plane(
+			RIGHT_BIT, polygon,
+			[](const Vec4& v) { return v.x <= v.w; },
+			[](Vec4& v) { v.x = v.w; });
 	}
 
 	if (code & BOTTOM_BIT) {
-
+		polygon = clip_plane(
+			BOTTOM_BIT, polygon,
+			[](const Vec4& v) { return v.y >= -v.w; },
+			[](Vec4& v) { v.y = -v.w; });
 	}
 
 	if (code & TOP_BIT) {
-
+		polygon = clip_plane(
+			TOP_BIT, polygon,
+			[](const Vec4& v) { return v.y <= v.w; },
+			[](Vec4& v) { v.y = v.w; });
 	}
 
 	if (code & FAR_BIT) {
-
+		polygon = clip_plane(
+			FAR_BIT, polygon,
+			[](const Vec4& v) { return v.z <= v.w; },
+			[](Vec4& v) { v.z = v.w; });
 	}
+
+	if (code & NEAR_BIT) {
+		polygon = clip_plane(
+			NEAR_BIT, polygon,
+			[](const Vec4& v) { return v.z >= -v.w; },
+			[](Vec4& v) { v.z = -v.w; });
+	}
+
 
 	for(int i = 0 ; i < polygon.Size(); i++) {
 		if (polygon[i].pos.w <= 0.0f) {
@@ -450,8 +469,52 @@ void Pipeline<p, P, flags>::clip_triangle(
 
 	if (clipCode0 | clipCode1 | clipCode2) {
 		if (!(clipCode0 & clipCode1 & clipCode2)) {
+			auto polygon = SutherlandHodgman_clip_triangle(
+							va.clip_position,
+							vb.clip_position,
+							vc.clip_position,
+							(clipCode0 ^ clipCode1) | (clipCode1 ^ clipCode2) | (clipCode2 ^ clipCode0));
+			std::vector<const ShadedVertex> clip_buffer(polygon.Size());
+			for(int j = 0; j < polygon.Size(); j++) {
+				auto weight = polygon[j].distance;
 
+				if (weight.x == 1.0f) {
+					clip_buffer.push_back(va);
+
+				} else if (weight.y == 1.0f) {
+					clip_buffer.push_back(vb);
+				} else if (weight.z == 1.0f) {
+					clip_buffer.push_back(vc);
+				} else {
+					Vec4 pos = weight.x * va.clip_position + weight.y * vb.clip_position + weight.z * vc.clip_position;
+					ShadedVertex newVertex;
+					newVertex.clip_position = pos;
+					if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Flat) {
+						newVertex.attributes = va.attributes;
+					} else {
+						for(uint32_t i = 0; i < newVertex.attributes.size(); i++) {
+							newVertex.attributes[i] = weight.x * va.attributes[i] + weight.y * vb.attributes[i] + weight.z * vc.attributes[i];
+						}
+					}
+					clip_buffer.push_back(newVertex);
+				}
+			}
+
+			for (int j = 2; j < polygon.Size(); j++) {
+				auto& v0 = clip_buffer[0];
+				auto& v1 = clip_buffer[j-1];
+				auto& v2 = clip_buffer[j];
+
+				emit_vertex(v0);
+				emit_vertex(v1);
+				emit_vertex(v2);
+			}
 		}
+
+	} else {
+		emit_vertex(va);
+		emit_vertex(vb);
+		emit_vertex(vc);
 	}
 }
 
