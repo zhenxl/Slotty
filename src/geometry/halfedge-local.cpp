@@ -535,6 +535,46 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::dissolve_edge(EdgeRef e) {
     return std::nullopt;
 }
 
+bool Halfedge_Mesh::isDirectConnected(VertexCRef v1, VertexCRef v2) {
+	if (v1 == v2) return false; //they are same vertex
+	HalfedgeCRef h1 = v1->halfedge;
+	do {
+		HalfedgeCRef h1_twin = h1->twin;
+		VertexCRef v1_neibour = h1_twin->vertex;
+		if (v1_neibour == v2) return true;
+		h1 = h1_twin->next;
+	} while(h1 != v1->halfedge);
+	return false;
+}
+
+bool Halfedge_Mesh::willCollapseCauseNonManifold(EdgeRef e) {
+	VertexRef v1 = e->halfedge->vertex;
+	VertexRef v2 = e->halfedge->twin->vertex;
+	if (v1->on_boundary() && v2->on_boundary() && !e->on_boundary()) {
+		return false;
+	}
+
+	HalfedgeCRef h = v1->halfedge;
+	do 
+	{
+		HalfedgeCRef h_twin = h->twin;
+		VertexCRef v1_direct_neibour = h_twin->vertex;
+		HalfedgeCRef hh = v1->halfedge;
+		// in inner loop, we need find another v1 neibour
+		do {
+			HalfedgeCRef hh_twin = hh->twin;
+			VertexCRef another_v1_neibour = hh_twin->vertex;
+			if (isDirectConnected(v1_direct_neibour, another_v1_neibour) && isDirectConnected(another_v1_neibour, v2) && isDirectConnected(v1_direct_neibour, v2)) {
+				return true;
+			}
+			hh = hh_twin->next;
+		} while(hh != v1->halfedge);
+		h = h_twin->next;
+	} while(h != v1->halfedge);
+
+	return false;
+}
+
 /* collapse_edge: collapse edge to a vertex at its middle
  *  e: the edge to collapse
  *
@@ -543,11 +583,116 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::dissolve_edge(EdgeRef e) {
  */
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) {
 	//A2L3: Collapse Edge
+	if (willCollapseCauseNonManifold(e)) return std::nullopt;
 
 	//Reminder: use interpolate_data() to merge corner_uv / corner_normal data on halfedges
 	// (also works for bone_weights data on vertices!)
-	
-    return std::nullopt;
+	//now consider this condition:
+	// |  |
+	// |  |
+	// |--|
+	// |  |
+	// |  |
+	HalfedgeRef h1 = e->halfedge;
+	HalfedgeRef h2 = h1->next;
+	HalfedgeRef h3 = h1->before();
+	HalfedgeRef h4 = h1->twin;
+	HalfedgeRef h5 = h4->next;
+	HalfedgeRef h6 = h4->before();
+	HalfedgeRef h7 = h2->twin;
+	HalfedgeRef h8 = h6->twin;
+	HalfedgeRef h9 = h5->twin;
+	HalfedgeRef h10 = h3->twin;
+
+	VertexRef v0 = h4->vertex;
+	VertexRef v1 = h1->vertex;
+	VertexRef v2 = h3->vertex;
+	VertexRef v3 = h7->vertex;
+	VertexRef v4 = h6->vertex;
+	VertexRef v5 = h9->vertex;
+
+	FaceRef f0 = h1->face;
+	FaceRef f1 = h4->face;
+
+	VertexRef vm = emplace_vertex();
+	vm->position = (v0->position + v1->position) / 2.0f;
+	interpolate_data({v0, v1}, vm);
+	if (v2->id == v3->id) {
+		//create new element
+		//reassign
+		EdgeRef h7_edge = h7->edge;
+		h7->set_tnvef(h10, h7->next, v2, h7_edge, h7->face);
+		interpolate_data({h1, h2}, h7);
+		h10->set_tnvef(h7, h10->next, vm, h7_edge, h10->face);
+		interpolate_data({h3, h1}, h10);
+		v2->halfedge = h7;
+		h7->edge->halfedge = h7;
+		//erase useless 
+		// erase_edge(h3->edge);
+		// erase_edge(e);
+
+		// erase_halfedge(h2);
+		// erase_halfedge(h3);
+		// erase_halfedge(h1);
+
+		// erase_face(f0);
+		// erase_vertex(v0);
+		// erase_vertex(v1);
+
+	} else {
+		h3->set_tnvef(h10, h2, v2, h3->edge, f0);
+		h2->set_tnvef(h7, h2->next, vm, h2->edge, f0);
+		f0->halfedge = h3;
+		h10->vertex = vm;
+
+	}
+
+	if(v5->id == v4->id) {
+		EdgeRef h8_edge = h8->edge;
+		h8->set_tnvef(h9, h8->next, vm, h8_edge, h8->face);
+		interpolate_data({h6, h4}, h9);
+		h9->set_tnvef(h8, h9->next, v5, h8_edge, h9->face);
+		h8->edge->halfedge = h8;
+		v5->halfedge = h9;
+	} else {
+		h6->set_tnvef(h8, h5, v4, h6->edge, f1);
+		h5->set_tnvef(h9, h5->next, vm, h5->edge, f1);
+		f1->halfedge = h6;
+		h8->vertex = vm;
+	}
+	vm->halfedge = h10;
+	HalfedgeRef hx = h7;
+	HalfedgeRef hy = hx->next;
+	while (hy != h8) {
+		hy->vertex = vm;
+		hy = hy->twin->next;
+	}
+	hx = h9;
+	hy = hx->next;
+	while (hy != h10) {
+		hy->vertex = vm;
+		hy = hy->twin->next;
+	}
+
+	// erase edge
+	if (v2->id == v3->id) {
+		erase_face(f0);
+		erase_edge(h3->edge);
+		erase_halfedge(h2);
+		erase_halfedge(h3);
+	}
+	if( v4->id == v5->id) {
+		erase_face(f1);
+		erase_edge(h5->edge);
+		erase_halfedge(h5);
+		erase_halfedge(h6);
+	}
+	erase_vertex(v0);
+	erase_vertex(v1);
+	erase_halfedge(h1);
+	erase_halfedge(h4);
+	erase_edge(e);
+	return vm;
 }
 
 /*
@@ -638,6 +783,35 @@ void Halfedge_Mesh::extrude_positions(FaceRef face, Vec3 move, float shrink) {
 	// use mesh navigation to get starting positions from the surrounding faces,
 	// compute the centroid from these positions + use to shrink,
 	// offset by move
+	// Initialize centroid to zero
+	Vec3 centroid(0.0f, 0.0f, 0.0f);
+	float count = 0.0f;
+
+	// Loop over all vertices of the face to compute the centroid
+	HalfedgeRef face_hg = face->halfedge;
+	do {
+		centroid += face_hg->vertex->position;
+		count += 1.0f;
+		face_hg = face_hg->next;
+	} while(face_hg != face->halfedge);
 	
+	centroid /= count; // Divide by the total number of vertices to get the average (centroid)
+	face_hg = face->halfedge;
+
+	do {
+		VertexRef v = face_hg->vertex;
+		Vec3 newPosition = v->position;
+		if (shrink != 0.0f) {
+			Vec3 direction = centroid - v->position; // Direction from vertex to centroid
+			newPosition += direction * shrink; // Move the vertex towards or away from the centroid
+		}
+
+		// Apply the translation
+		newPosition += move;
+
+		// Update the vertex position
+		v->position = newPosition;
+		face_hg = face_hg->next;
+	} while(face_hg != face->halfedge);
 }
 

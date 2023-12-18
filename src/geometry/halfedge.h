@@ -126,6 +126,10 @@ public:
 	//remove an edge by collapsing it to a vertex at its midpoint
 	std::optional<VertexRef> collapse_edge(EdgeRef e);
 
+	bool isDirectConnected(VertexCRef v1, VertexCRef v2);
+	
+	bool willCollapseCauseNonManifold(EdgeRef e);
+
 	//remove a face by collapsing it to a vertex at its centroid
 	std::optional<VertexRef> collapse_face(FaceRef f);
 
