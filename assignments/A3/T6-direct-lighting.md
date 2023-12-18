@@ -34,7 +34,7 @@ Finally, let's upgrade `Pathtracer::sample_direct_lighting_task4` with `Pathtrac
 Note that these area light functions operate in **world space**, while BSDF functions operate in **local space**, relative to the surface at the ray intersection point. Pay close attention to the inputs and outputs of each of these functions, and make sure to look at what attributes you have available to you as part of the `Pathtracer::Shading_Info` struct.
 The direct lighting procedure should now follow these steps:
 
-- If the BSDF is discrete (`hit.bsdf.is_specular()`), we don't need to bother sampling lights: the behavior should be the same as task 4.
+- If the BSDF is discrete (`hit.bsdf.is_specular()`), we don't need to bother sampling lights: the behavior should be the same as Task 4.
 
 - Otherwise, we should randomly choose whether we get our sample from `Material::scatter` or `Pathtracer::sample_area_lights`. Choose between the strategies with equal probability.
 
@@ -42,21 +42,23 @@ The direct lighting procedure should now follow these steps:
 
 - Add estimate of incoming light scaled by BSDF attenuation. Given a sample, we don't know whether it came from the BSDF or the light, so you should use `Material::evaluate`, `Material::pdf`, and `Pathtracer::area_lights_pdf` to compute the proper weighting. What is the PDF of our sample, given it comes from the combined distribution?
 
+Once you have finished making modifications to `sample_direct_lighting_task6`, you'll need to change the `SAMPLE_AREA_LIGHTS` global variable to be true in order to test your changes.
+
 ---
 
 ## Tips
 
-- The converged output of all scenes should **not** change with the addition of task 6. If it does, you've done something wrong.
+- The converged output of all scenes should **not** change with the addition of Task 6. If it does, you've done something wrong.
 - When computing the BSDF attenuation, you should take into account that you are using only **one** direction that you randomly chose out of two sampling strategies.
 - We do not provide much in the way of reference images: make your own scene demonstrating what situations area light sampling is or isn't well suited for. 
 - Use the ray log to visually debug what proportion of your shadow rays are being directed at lights and where they are going.
-- Similar to task 4, we won't be releasing any test cases for lighting. Instead, we encourage you to run the pathtracer in the GUI or headless to test your code.
+- Similar to Task 4, we won't be releasing any test cases for lighting. Instead, we encourage you to run the pathtracer in the GUI or headless to test your code.
 
 ---
 
 ## Reference Results
 
-You will now be able to render scenes featuring area lights using far fewer samples and still get good results. The effect will be particularly pronounced when small and/or intense area lights are used with Lambertian materials (e.g. see task 7, grace.exr). 
+You will now be able to render scenes featuring area lights using far fewer samples and still get good results. The effect will be particularly pronounced when small and/or intense area lights are used with Lambertian materials (e.g. see Task 7, the bright light sources at the top of the cathedral in `grace.exr`). 
 
 Here are `A3-cbox-spheres.js3d` and `A3-cbox-lambertian-spheres.js3d` without (left) and with (right) area light sampling (32 samples, max depth = 8):
 
