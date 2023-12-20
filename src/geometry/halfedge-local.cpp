@@ -410,8 +410,113 @@ std::optional<Halfedge_Mesh::FaceRef> Halfedge_Mesh::extrude_face(FaceRef f) {
 	// Reminder: This function does not update the vertex positions.
 	// Remember to also fill in extrude_helper (A2L4h)
 
-	(void)f;
-    return std::nullopt;
+	HalfedgeRef h0 = f->halfedge;
+	HalfedgeRef h1 = h0->next;
+	HalfedgeRef h2 = h1->next;
+	HalfedgeRef h3 = h2->next;
+	VertexRef v0 = h0->vertex;
+	VertexRef v1 = h1->vertex;
+	VertexRef v2 = h2->vertex;
+	VertexRef v3 = h3->vertex;
+
+	VertexRef v4 = emplace_vertex();
+	VertexRef v5 = emplace_vertex();
+	VertexRef v6 = emplace_vertex();
+	VertexRef v7 = emplace_vertex();
+
+	// give each vertex position
+	v4->position = v0->position;
+	v5->position = v1->position;
+	v6->position = v2->position;
+	v7->position = v3->position;
+
+	EdgeRef e1 = emplace_edge();
+	EdgeRef e2 = emplace_edge();
+	EdgeRef e3 = emplace_edge();
+	EdgeRef e4 = emplace_edge();
+	EdgeRef e5 = emplace_edge();
+	EdgeRef e6 = emplace_edge();
+	EdgeRef e7 = emplace_edge();
+	EdgeRef e8 = emplace_edge();
+
+
+	HalfedgeRef h4 = emplace_halfedge();
+	HalfedgeRef h5 = emplace_halfedge();
+	HalfedgeRef h6 = emplace_halfedge();
+	HalfedgeRef h7 = emplace_halfedge();
+
+	HalfedgeRef h8  = emplace_halfedge();
+	HalfedgeRef h9  = emplace_halfedge();
+	HalfedgeRef h10 = emplace_halfedge();
+	HalfedgeRef h11 = emplace_halfedge();
+
+	HalfedgeRef h12 = emplace_halfedge();
+	HalfedgeRef h13 = emplace_halfedge();
+	HalfedgeRef h14 = emplace_halfedge();
+	HalfedgeRef h15 = emplace_halfedge();
+	HalfedgeRef h16 = emplace_halfedge();
+	HalfedgeRef h17 = emplace_halfedge();
+	HalfedgeRef h18 = emplace_halfedge();
+	HalfedgeRef h19 = emplace_halfedge();
+
+	// FaceRef not_used_face = f;
+	// FaceRef f1 = emplace_face();
+	FaceRef f2 = emplace_face();
+	FaceRef f3 = emplace_face();
+	FaceRef f4 = emplace_face();
+	FaceRef f5 = emplace_face();
+
+	//reassign connectivity for f1
+	h4->set_tnvef(h8, h5, v4, e1, f);
+	h5->set_tnvef(h11, h6, v5, e2, f);
+	h6->set_tnvef(h10, h7, v6, e3, f);
+	h7->set_tnvef(h9, h4, v7, e4, f);
+	e1->halfedge = h4;
+	e2->halfedge = h5;
+	e3->halfedge = h6;
+	e4->halfedge = h7;
+	f->halfedge = h4;
+
+	v4->halfedge = h4;
+	v5->halfedge = h5;
+	v6->halfedge = h6;
+	v7->halfedge = h7;
+
+	//reassign connectivity for f2
+	h8->set_tnvef(h4, h12, v5, e1, f2);
+	h12->set_tnvef(h13, h0, v4, e5, f2);
+	h0->set_tnvef(h0->twin, h14, v0, h0->edge, f2);
+	h14->set_tnvef(h15, h8, v1, e6, f2);
+	e5->halfedge = h12;
+	e6->halfedge = h14;
+	f2->halfedge = h8;
+
+	//reassign connectivity for f3
+	h1->set_tnvef(h1->twin, h16, v1, h1->edge, f3);
+	h16->set_tnvef(h17, h11, v2, e7, f3);
+	h11->set_tnvef(h5, h15, v6, e2, f3);
+	h15->set_tnvef(h14, h1, v5, e6, f3);
+	e7->halfedge = h16;
+	f3->halfedge = h15;
+
+	//reassign connectivity for f4
+	h2->set_tnvef(h2->twin, h18, v2, h2->edge, f4);
+	h18->set_tnvef(h19, h10, v3, e8, f4);
+	h10->set_tnvef(h6, h17, v7, e3, f4);
+	h17->set_tnvef(h16, h2, v6, e7, f4);
+	e8->halfedge = h18;
+	f4->halfedge = h2;
+
+	//reassign connectivity for f5
+	h3->set_tnvef(h3->twin, h13, v3, h3->edge, f5);
+	h13->set_tnvef(h12, h9, v0, e5, f5);
+	h9->set_tnvef(h7, h19, v4, e4, f5);
+	h19->set_tnvef(h18, h3, v7, e8, f5);
+	f5->halfedge = h3;
+
+	// erase_face(not_used_face);
+
+    return f;
 }
 
 /*
