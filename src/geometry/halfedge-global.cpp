@@ -13,7 +13,16 @@
  */
 void Halfedge_Mesh::triangulate() {
 	//A2G1: triangulation
+	std::cout << "now in trianglation: " << faces.size() << std::endl;
+	// int cnt =0;
+	for(auto it = faces.begin(); it != faces.end(); it++) {
+		// std::cout << "id: " << it->id << " " << it->boundary << std::endl;
+		if (it->boundary) continue;
+		// if (cnt == 3) {break;}
+		triangulate_one(it);
+		// cnt++;
 	
+	}
 }
 
 /*
@@ -31,16 +40,26 @@ void Halfedge_Mesh::linear_subdivide() {
 	//A2G2: linear subdivision
 
 	// For every vertex, assign its current position to vertex_positions[v]:
+	for(auto it = vertices.cbegin(); it != vertices.cend(); it++) {
+		vertex_positions[it] = it->position;
+	}
 
 	//(TODO)
 
     // For every edge, assign the midpoint of its adjacent vertices to edge_vertex_positions[e]:
 	// (you may wish to investigate the helper functions of Halfedge_Mesh::Edge)
+	for(auto it = edges.cbegin(); it != edges.cend(); it++) {
+		edge_vertex_positions[it] = it->center();
+	}
 
 	//(TODO)
 
     // For every *non-boundary* face, assign the centroid (i.e., arithmetic mean) to face_vertex_positions[f]:
 	// (you may wish to investigate the helper functions of Halfedge_Mesh::Face)
+	for(auto it = faces.cbegin(); it != faces.cend(); it++) {
+		if (it->boundary) continue;
+		face_vertex_positions[it] = it->center();
+	}
 
 	//(TODO)
 
@@ -72,10 +91,36 @@ void Halfedge_Mesh::catmark_subdivide() {
 	// https://en.wikipedia.org/wiki/Catmull%E2%80%93Clark_subdivision_surface
 
 	// Faces
+	for(auto it = faces.cbegin(); it != faces.cend(); it++) {
+		if (it->boundary) continue;
+		face_vertex_positions[it] = it->center();
+	}
 
 	// Edges
+	for(auto it =  edges.cbegin(); it != edges.cend(); it++) {
+		edge_vertex_positions[it] = it->center()* 0.5 + (it->halfedge->face->center() + it->halfedge->twin->face->center()) * 0.25;
+	}
+
 
 	// Vertices
+	for(auto it = vertices.cbegin(); it != vertices.cend(); it++) {
+		
+		Vec3 Q{0.0f, 0.0f, 0.0f};
+		Vec3 R{0.0f, 0.0f, 0.0f};
+		HalfedgeCRef h = it->halfedge;
+		uint32_t d = 0;
+		do {
+			d++;
+			Q += face_vertex_positions[h->face];
+			R += h->edge->center();
+			h = h->twin->next;
+		} while (h != it->halfedge);
+		Q /= d;
+		R /= d;
+		auto S = it->position;
+		auto res = Q / d + 2*R / d + (d-3)*S / d;
+		vertex_positions[it] = res;
+	}
 
 	
 	//Now, use the provided helper function to actually perform the subdivision:

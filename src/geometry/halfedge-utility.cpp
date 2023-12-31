@@ -277,6 +277,94 @@ uint32_t Halfedge_Mesh::Face::degree() const {
 	return d;
 }
 
+float ccw(Vec2 p0, Vec2 p1, Vec2 p2) {
+	float v = (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
+	std::cout << "ccw: " << v << std::endl;
+	return (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
+}
+
+bool in_triangle(Vec2 a, Vec2 b, Vec2 c, Vec2 p) {
+	float x = ccw(p, a, b);
+	float y = ccw(p, b, c);
+	float z = ccw(p, c, a);
+	return x * y > 0 && y * z > 0 && z * x > 0;
+}
+
+void Halfedge_Mesh::triangulate_one(FaceRef face) {
+	std::vector<HalfedgeRef> p = face->get_halfedges();
+	size_t n = p.size();
+	std::vector<int> pre(n), nxt(n);
+	std::set<int> candidates;//candidates for ear vertex
+	for(int i = 0; i < n; i++) {
+		pre[i] = (i + n - 1) % n;
+		nxt[i] = (i+ 1) % n;
+
+		if (ccw(p[pre[i]]->corner_uv, p[i]->corner_uv, p[nxt[i]]->corner_uv) != 0) {
+			candidates.insert(i);
+		}
+	}
+	int polygon_cnt = 0;
+	while (polygon_cnt < n -3 && candidates.size()) {
+		int k  = *candidates.begin();
+		candidates.erase(k);
+		// if (ccw(p[pre[k]]->corner_uv, p[k]->corner_uv, p[nxt[k]]->corner_uv) == 0) {
+		// 	continue;
+		// }
+
+		bool ear = true;
+		for (int d = nxt[nxt[k]]; d != pre[k]; d = nxt[d]) {
+			if(in_triangle(p[pre[k]]->corner_uv, p[k]->corner_uv, p[nxt[k]]->corner_uv, p[d]->corner_uv)) {
+				ear = false;
+				break;
+			}
+		}
+		if (ear) {
+				//find old Halfedge
+
+				HalfedgeRef before_triangle = p[pre[pre[k]]];
+				HalfedgeRef next_triangle = p[nxt[k]];
+				VertexRef c = next_triangle->vertex;
+				VertexRef a = p[pre[k]]->vertex;
+				FaceRef outter_face = p[k]->face;
+
+				EdgeRef edge = emplace_edge();
+				HalfedgeRef inner = emplace_halfedge();
+				HalfedgeRef outter = emplace_halfedge();
+				FaceRef inner_face = emplace_face();
+
+				inner->set_tnvef(outter, p[pre[k]], c, edge, inner_face);
+				p[k]->set_tnvef(p[k]->twin, inner, p[k]->vertex, p[k]->edge, inner_face);
+				p[pre[k]]->set_tnvef(p[pre[k]]->twin, p[k], a, p[pre[k]]->edge, inner_face);
+				inner_face->halfedge = p[k];
+
+				outter->set_tnvef(inner, next_triangle, a, edge, outter_face);
+				before_triangle->set_tnvef(before_triangle->twin, outter, before_triangle->vertex, before_triangle->edge, outter_face);
+				edge->halfedge = inner;
+				outter_face->halfedge = outter;
+				p.push_back(outter);
+				pre.push_back(-1);
+				nxt.push_back(-1);
+				int outter_id = p.size() - 1;
+				pre[outter_id] = pre[pre[k]]; 
+				nxt[pre[pre[k]]] = outter_id;
+				nxt[outter_id] = nxt[k];
+				pre[nxt[k]]  = outter_id;
+				candidates.insert(outter_id);
+				polygon_cnt += 1;
+		}
+	}
+}
+
+std::vector<Halfedge_Mesh::HalfedgeRef> Halfedge_Mesh::Face::get_halfedges() {
+	HalfedgeRef h = halfedge;
+	std::vector<Halfedge_Mesh::HalfedgeRef> halfedges;
+	do {
+		halfedges.push_back(h);
+		h = h->next;
+	} while (h != halfedge);
+	return halfedges;
+}
+
 bool Halfedge_Mesh::Edge::on_boundary() const {
 	return halfedge->face->boundary || halfedge->twin->face->boundary;
 }

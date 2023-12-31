@@ -66,6 +66,8 @@ public:
 	using HalfedgeCRef = std::list<Halfedge>::const_iterator;
 	using ElementCRef = std::variant<VertexCRef, EdgeCRef, HalfedgeCRef, FaceCRef>;
 
+	typedef std::vector<HalfedgeCRef> polygon;
+
 	//////////////////////////////////////////////////////////////////////////////////////////
 	// Local Edit Operations | src/geometry/halfedge-local.cpp
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -155,6 +157,8 @@ public:
 
 	//split all non-triangular non-boundary faces into triangles
 	void triangulate();
+
+	void triangulate_one(FaceRef face);
 
 	//add new vertex at every face and edge center, without changing mesh shape
 	void linear_subdivide();
@@ -283,7 +287,10 @@ public:
 		Vec3 center() const; // centroid of this face
 		Vec3 normal() const; // area-weighted face normal
 		uint32_t degree() const; // number of vertices/edges in this face
+		std::vector<HalfedgeRef> get_halfedges();
+		void contruct_face_from_triangle();
 		float area() const; // area of this face
+
 
 	private:
 		Face(uint32_t id_, bool boundary_) : id(id_), boundary(boundary_) { }
