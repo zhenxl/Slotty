@@ -92,19 +92,36 @@ void Halfedge_Mesh::catmark_subdivide() {
 
 	// Faces
 	for(auto it = faces.cbegin(); it != faces.cend(); it++) {
-		if (it->boundary) continue;
+		if (it->boundary) {
+			HalfedgeCRef h = it->halfedge;
+			do {
+				edge_vertex_positions[h->edge] = h->edge->center();
+				VertexRef v = h->vertex;
+				// uint32_t d = 0;
+				HalfedgeCRef v_h = v->halfedge;
+				Vec3 neibor{0.0f, 0.0f, 0.0f};
+				do {
+					neibor += v_h->twin->vertex->position;
+					v_h = v_h->twin->next;
+				} while (v_h != v->halfedge);
+				vertex_positions[v] = neibor * 0.125 + v->position * 0.75;
+				h = h->next;
+			} while (h != it->halfedge);
+			continue;
+		}
 		face_vertex_positions[it] = it->center();
 	}
 
 	// Edges
 	for(auto it =  edges.cbegin(); it != edges.cend(); it++) {
+		if (it->on_boundary()) continue;
 		edge_vertex_positions[it] = it->center()* 0.5 + (it->halfedge->face->center() + it->halfedge->twin->face->center()) * 0.25;
 	}
 
 
 	// Vertices
 	for(auto it = vertices.cbegin(); it != vertices.cend(); it++) {
-		
+		if(it->on_boundary()) continue;;
 		Vec3 Q{0.0f, 0.0f, 0.0f};
 		Vec3 R{0.0f, 0.0f, 0.0f};
 		HalfedgeCRef h = it->halfedge;
@@ -323,6 +340,29 @@ bool Halfedge_Mesh::simplify(float ratio) {
     //    the collapsed vertex AFTER it's been collapsed. Also remember to assign
     //    a quadric to the collapsed vertex, and to pop the collapsed edge off the
     //    top of the queue.
+	for(auto face: faces) {
+		Vec3 n = face.normal();
+		Vec3 pos = face.halfedge->vertex->position.unit();
+		auto d = -dot(n, pos);
+		Vec4 v {n.x, n.y, n.z, d};
+		Mat4 K = outer(v, v);
+		face_quadrics[face.id] = K;
+
+		HalfedgeRef h = face.halfedge;
+		do {
+			auto it = vertex_quadrics.find(h->vertex->id);
+			if (it != vertex_quadrics.end()) {
+				vertex_quadrics[h->vertex->id] += K;
+			} else {
+				vertex_quadrics[h->vertex->id] = K;
+			}
+			h = h->next;
+		} while (h != face.halfedge);	
+		// auto d = n.
+	}
+
+	
+
 
     return false;
 }
