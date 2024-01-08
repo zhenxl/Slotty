@@ -13,7 +13,7 @@
  */
 void Halfedge_Mesh::triangulate() {
 	//A2G1: triangulation
-	std::cout << "now in trianglation: " << faces.size() << std::endl;
+	// std::cout << "now in trianglation: " << faces.size() << std::endl;
 	// int cnt =0;
 	for(auto it = faces.begin(); it != faces.end(); it++) {
 		// std::cout << "id: " << it->id << " " << it->boundary << std::endl;
@@ -266,6 +266,14 @@ struct Edge_Record {
         //    Edge_Record::optimal.
         // -> Also store the cost associated with collapsing this edge in
         //    Edge_Record::cost.
+		Mat4 v_q     = VQ[e->halfedge->vertex->id];
+		Mat4 other_q = VQ[e->halfedge->twin->vertex->id];
+		Mat4 e_k = v_q + other_q;
+		Mat4 A{Vec4{e_k.cols[0].xyz(), 0.0f}, Vec4{e_k.cols[1].xyz(), 0.0f}, Vec4{e_k.cols[2].xyz(), 0.0f}, Vec4{0.0f, 0.0f, 0.0f, 1.0f}};
+		Vec3 b{e_k.cols[3].xyz()};
+		Vec3 x = A.inverse() * b;
+		optimal = x;
+		score = dot(b, optimal);
 	}
 	Halfedge_Mesh::EdgeRef edge;
 	Vec3 optimal;
@@ -325,6 +333,7 @@ bool Halfedge_Mesh::simplify(float ratio) {
 	std::unordered_map<uint32_t, Mat4> vertex_quadrics;
 	std::unordered_map<uint32_t, Edge_Record> edge_records;
 	MutablePriorityQueue<Edge_Record> queue;
+	uint32_t retain_faces_num = faces.size() * ratio;
 
 	// Compute initial quadrics for each face by writing the plane equation for
     // the face in homogeneous coordinates. These quadrics should be stored in
@@ -361,9 +370,66 @@ bool Halfedge_Mesh::simplify(float ratio) {
 		// auto d = n.
 	}
 
-	
+	for(auto it = edges.begin(); it != edges.end(); ++it) {
+		// std::cout << "edge id: " << it->id << std::endl;
+		Edge_Record er{vertex_quadrics, it};
+		edge_records[it->id] = er;
+		queue.insert(er);
+	}
 
+	while(queue.size() > 0) {
+		// std::cout << "queue size: " << queue.size() << std::endl;
+		auto edge = queue.top();
+		queue.pop();
+		Mat4 quadric = vertex_quadrics[edge.edge->halfedge->vertex->id] + vertex_quadrics[edge.edge->halfedge->twin->vertex->id];
 
+		VertexRef end0 = edge.edge->halfedge->vertex;
+		VertexRef end1 = edge.edge->halfedge->twin->vertex;
+
+		HalfedgeRef h0 = end0->halfedge;
+		// std::cout << "end0 remove " << std::endl;
+		do {
+			auto edge_record = edge_records[h0->edge->id];
+			queue.remove(edge_record);
+			h0 = h0->twin->next;
+		} while (h0 != end0->halfedge);
+
+		// std::cout << "end1 remove " << std::endl;
+		h0 = end1->halfedge;
+		// int i = 0;
+		do {
+			// std::cout << "cnt: " << i++ << std::endl;
+			auto edge_record = edge_records[h0->edge->id];
+			queue.remove(edge_record);
+			h0 = h0->twin->next;
+		} while (h0 != end1->halfedge);
+		// std::cout << "before collapse edge" << std::endl;
+		auto vertex = collapse_edge(edge.edge);
+		if (vertex.has_value()) {
+			VertexRef v = vertex.value();
+			v->position = edge.optimal;
+			vertex_quadrics[v->id] = quadric;
+			h0 = v->halfedge;
+			// std::cout << "now insert new edge" << std::endl;
+			do {
+				EdgeRef e = h0->edge;
+				// std::cout << "insert edge: " << e->id << std::endl;
+				Edge_Record er{vertex_quadrics, e};
+				queue.insert(er);
+				h0 = h0->twin->next;
+			} while (h0 != v->halfedge);
+
+		} else {
+			// std::cout << "not collapse " << std::endl;
+			// continue;
+			return false;
+		}
+
+		auto cur_face_num = faces.size();
+		if (cur_face_num <= retain_faces_num) {
+			return true;
+		}
+	}
     return false;
 }
 

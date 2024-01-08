@@ -278,28 +278,44 @@ uint32_t Halfedge_Mesh::Face::degree() const {
 }
 
 float ccw(Vec2 p0, Vec2 p1, Vec2 p2) {
-	float v = (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
-	std::cout << "ccw: " << v << std::endl;
+	// float v = (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
+	// std::cout << "ccw: " << v << std::endl;
 	return (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
 }
 
-bool in_triangle(Vec2 a, Vec2 b, Vec2 c, Vec2 p) {
-	float x = ccw(p, a, b);
-	float y = ccw(p, b, c);
-	float z = ccw(p, c, a);
-	return x * y > 0 && y * z > 0 && z * x > 0;
+int get_orientation(Vec3 pre, Vec3 p, Vec3 after, Vec3 normal) {
+	Vec3 res = cross(pre - p, after - p);
+	if(res.norm() == 0) return 0;
+	if (res.x * normal.x <0 || res.y * normal.y < 0 || res.z * normal.z < 0) {
+		return 1;
+	}
+	return -1;
+}
+
+int is_convex(Vec3 pre, Vec3 p, Vec3 after, Vec3 normal) {
+	if(get_orientation(pre, p, after, normal) == 1) return true;
+	return false;
+}
+
+bool in_triangle(Vec3 a, Vec3 b, Vec3 c, Vec3 p, Vec3 normal) {
+	int x = get_orientation(a, p, b, normal);
+	int y = get_orientation(b, p, c, normal);
+	int z = get_orientation(c, p, a, normal);
+
+	return x == -1 && y == -1 && z == -1;
 }
 
 void Halfedge_Mesh::triangulate_one(FaceRef face) {
 	std::vector<HalfedgeRef> p = face->get_halfedges();
 	size_t n = p.size();
+	Vec3 normal = face->normal();
 	std::vector<int> pre(n), nxt(n);
 	std::set<int> candidates;//candidates for ear vertex
 	for(int i = 0; i < n; i++) {
 		pre[i] = (i + n - 1) % n;
 		nxt[i] = (i+ 1) % n;
 
-		if (ccw(p[pre[i]]->corner_uv, p[i]->corner_uv, p[nxt[i]]->corner_uv) != 0) {
+		if (is_convex(p[pre[i]]->vertex->position, p[i]->vertex->position, p[nxt[i]]->vertex->position, normal)) {
 			candidates.insert(i);
 		}
 	}
@@ -307,13 +323,13 @@ void Halfedge_Mesh::triangulate_one(FaceRef face) {
 	while (polygon_cnt < n -3 && candidates.size()) {
 		int k  = *candidates.begin();
 		candidates.erase(k);
-		// if (ccw(p[pre[k]]->corner_uv, p[k]->corner_uv, p[nxt[k]]->corner_uv) == 0) {
-		// 	continue;
-		// }
+		if (get_orientation(p[pre[k]]->vertex->position, p[k]->vertex->position, p[nxt[k]]->vertex->position, normal) == 0) {
+			continue;
+		}
 
 		bool ear = true;
 		for (int d = nxt[nxt[k]]; d != pre[k]; d = nxt[d]) {
-			if(in_triangle(p[pre[k]]->corner_uv, p[k]->corner_uv, p[nxt[k]]->corner_uv, p[d]->corner_uv)) {
+			if(in_triangle(p[pre[k]]->vertex->position, p[k]->vertex->position, p[nxt[k]]->vertex->position, p[d]->vertex->position, normal)) {
 				ear = false;
 				break;
 			}

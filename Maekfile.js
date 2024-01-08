@@ -269,7 +269,7 @@ if (maek.OS === 'linux') {
 	];
 } else if (maek.OS === 'macos') {
 	Scotty3D_options.LINKLibs = [...maek.options.LINKLibs,
-		`-L${NEST_LIBS}/SDL2/lib`, `-lSDL2`, `-lm`,`-liconv`, `-framework`, `CoreAudio`, `-framework`, `AudioToolbox`, `-weak_framework`, `CoreHaptics`, `-weak_framework`, `GameController`, `-framework`, `ForceFeedback`, `-lobjc`, `-framework`, `CoreVideo`, `-framework`, `Cocoa`, `-framework`, `Carbon`, `-framework`, `IOKit`, `-framework`, `OpenGL`,
+		`-L${NEST_LIBS}/SDL2/lib`, `-L/opt/homebrew/Cellar/boost/1.83.0/lib`, `-lSDL2`, `-lm`,`-liconv`, `-framework`, `CoreAudio`, `-framework`, `AudioToolbox`, `-weak_framework`, `CoreHaptics`, `-weak_framework`, `GameController`, `-framework`, `ForceFeedback`, `-lobjc`, `-framework`, `CoreVideo`, `-framework`, `Cocoa`, `-framework`, `Carbon`, `-framework`, `IOKit`, `-framework`, `OpenGL`,
 		"-framework", "Foundation",
 		"-framework", "AppKit",
 	];
