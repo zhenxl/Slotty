@@ -11,6 +11,7 @@
 #include <map>
 #include <sstream>
 #include <unordered_set>
+#include <iostream>
 
 bool Test::run_generators = false;
 
@@ -722,7 +723,8 @@ void Test::print_spectrums(const std::vector<Spectrum>& vec) {
 }
 
 bool Test::distant_from(const Halfedge_Mesh& from, const Halfedge_Mesh& to, float scale) {
-
+	std::cout << "vertices num: " << to.vertices.size() << std::endl;
+	int cnt = 0;
 	for (auto v = to.vertices.begin(); v != to.vertices.end(); ++v) {
 
 		// This is highly approximate: we simply scale up the threshold by the mean edge length
@@ -738,12 +740,18 @@ bool Test::distant_from(const Halfedge_Mesh& from, const Halfedge_Mesh& to, floa
 			h = h->twin->next;
 		} while (h != v->halfedge);
 		avg_edge /= static_cast<float>(n);
-
+		// std::cout <<"cloest_distance: " << closest_distance(from, v->position) << std::endl;
+		// std::cout << " pos: " << avg_edge * scale * 0.1f << std::endl;
 		if (closest_distance(from, v->position) > avg_edge * scale * 0.1f) {
-			return true;
+			std::cout <<"cloest_distance: " << closest_distance(from, v->position) << std::endl;
+			std::cout << " pos: " << avg_edge * scale * 0.1f << std::endl;
+			cnt ++;
+			// return true;
 		}
-	}
 
+	}
+	std::cout << "cnt: " << cnt << std::endl;
+	if (cnt > 0) return true;
 	return false;
 }
 

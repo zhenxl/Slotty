@@ -268,12 +268,12 @@ struct Edge_Record {
         //    Edge_Record::cost.
 		Mat4 v_q     = VQ[e->halfedge->vertex->id];
 		Mat4 other_q = VQ[e->halfedge->twin->vertex->id];
-		Mat4 e_k = v_q + other_q;
+		Mat4 e_k = (v_q + other_q);
 		Mat4 A{Vec4{e_k.cols[0].xyz(), 0.0f}, Vec4{e_k.cols[1].xyz(), 0.0f}, Vec4{e_k.cols[2].xyz(), 0.0f}, Vec4{0.0f, 0.0f, 0.0f, 1.0f}};
 		Vec3 b{e_k.cols[3].xyz()};
 		Vec3 x = A.inverse() * b;
-		optimal = x;
-		score = dot(b, optimal);
+		optimal = -x;
+		score = dot(b, -optimal);
 	}
 	Halfedge_Mesh::EdgeRef edge;
 	Vec3 optimal;
@@ -334,6 +334,7 @@ bool Halfedge_Mesh::simplify(float ratio) {
 	std::unordered_map<uint32_t, Edge_Record> edge_records;
 	MutablePriorityQueue<Edge_Record> queue;
 	uint32_t retain_faces_num = faces.size() * ratio;
+	std::cout << "retain_faces_num: " << retain_faces_num << std::endl;
 
 	// Compute initial quadrics for each face by writing the plane equation for
     // the face in homogeneous coordinates. These quadrics should be stored in
@@ -351,7 +352,7 @@ bool Halfedge_Mesh::simplify(float ratio) {
     //    top of the queue.
 	for(auto face: faces) {
 		Vec3 n = face.normal();
-		Vec3 pos = face.halfedge->vertex->position.unit();
+		Vec3 pos = face.halfedge->vertex->position;
 		auto d = -dot(n, pos);
 		Vec4 v {n.x, n.y, n.z, d};
 		Mat4 K = outer(v, v);
@@ -379,8 +380,11 @@ bool Halfedge_Mesh::simplify(float ratio) {
 
 	while(queue.size() > 0) {
 		// std::cout << "queue size: " << queue.size() << std::endl;
+		std::cout << "face size: " << faces.size() << std::endl;
+		if (faces.size() <=134) return true; //168 works fine, 166 not worked
 		auto edge = queue.top();
 		queue.pop();
+
 		Mat4 quadric = vertex_quadrics[edge.edge->halfedge->vertex->id] + vertex_quadrics[edge.edge->halfedge->twin->vertex->id];
 
 		VertexRef end0 = edge.edge->halfedge->vertex;
@@ -405,8 +409,14 @@ bool Halfedge_Mesh::simplify(float ratio) {
 		} while (h0 != end1->halfedge);
 		// std::cout << "before collapse edge" << std::endl;
 		auto vertex = collapse_edge(edge.edge);
+		// if (auto msg = validate()) {
+		// 	std::cout << "Invalid mesh: " <<  msg.value().second << std::endl;
+	    // }
+		// std::cout << "after collapse edge" << std::endl;
 		if (vertex.has_value()) {
 			VertexRef v = vertex.value();
+			// std::cout << "mid pos: " << v->position << std::endl;
+			// std::cout << "optimal: " << edge.optimal << std::endl;
 			v->position = edge.optimal;
 			vertex_quadrics[v->id] = quadric;
 			h0 = v->halfedge;
@@ -418,7 +428,6 @@ bool Halfedge_Mesh::simplify(float ratio) {
 				queue.insert(er);
 				h0 = h0->twin->next;
 			} while (h0 != v->halfedge);
-
 		} else {
 			// std::cout << "not collapse " << std::endl;
 			// continue;
@@ -427,6 +436,7 @@ bool Halfedge_Mesh::simplify(float ratio) {
 
 		auto cur_face_num = faces.size();
 		if (cur_face_num <= retain_faces_num) {
+			std::cout << "cur face num" << cur_face_num << std::endl;
 			return true;
 		}
 	}

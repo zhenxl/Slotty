@@ -2,6 +2,7 @@
 #include "test.h"
 #include "geometry/halfedge.h"
 #include "geometry/util.h"
+#include <iostream>
 
 static void expect_simplify(Halfedge_Mesh& mesh, float ratio, bool check_ratio = true) {
 
@@ -13,6 +14,7 @@ static void expect_simplify(Halfedge_Mesh& mesh, float ratio, bool check_ratio =
 		}
 
 		if (check_ratio && std::abs(expected_faces - mesh.faces.size()) > 1.0f) {
+			std::cout << expected_faces  << " " << mesh.faces.size() << std::endl;
 			throw Test::error("Simplification did not remove the expected number of faces!");
 		}
 
@@ -47,7 +49,10 @@ Test test_a2_go3_simplify_basic_ball_50("a2.go3.simplify.basic.ball.50", []() {
 	Halfedge_Mesh ball = Halfedge_Mesh::from_indexed_mesh(Util::closed_sphere_mesh(1.0f, 2));
 	Halfedge_Mesh orig = ball.copy();
 
-	expect_simplify(ball, 0.5f);
+	expect_simplify(ball, 0.50f);
+	// std::cout << "now expect simplify" << std::endl;
+	// Halfedge_Mesh bb = ball.copy();
+	// expect_simplify(ball, 0.965f);
 
 	// check mesh shape:
 	if (Test::distant_from(ball, orig, 1.0f)) {

@@ -688,7 +688,7 @@ bool Halfedge_Mesh::willCollapseCauseNonManifold(EdgeRef e) {
  */
 std::optional<Halfedge_Mesh::VertexRef> Halfedge_Mesh::collapse_edge(EdgeRef e) {
 	//A2L3: Collapse Edge
-	// if (willCollapseCauseNonManifold(e)) return std::nullopt;
+	if (willCollapseCauseNonManifold(e)) return std::nullopt;
 
 	//Reminder: use interpolate_data() to merge corner_uv / corner_normal data on halfedges
 	// (also works for bone_weights data on vertices!)
