@@ -1,6 +1,7 @@
 #include "test.h"
 #include "pathtracer/trace.h"
 #include "pathtracer/tri_mesh.h"
+#include <iostream>
 
 // Function to test if a ray we have intersects a triangle
 static PT::Trace try_intersect(Vec3 v0, Vec3 v1, Vec3 v2, Vec3 n0, Vec3 n1, Vec3 n2, Ray ray, Vec2 uv0 = {},
@@ -20,9 +21,10 @@ Test test_a3_task2_triangle_hit_simple("a3.task2.triangle.hit.simple", []() {
 
 	// Expects we hit at Vec3(0, 0, 0) with a normal of Vec3(1, 0, 0) and no uv
 	PT::Trace exp = PT::Trace(true, Vec3(0, 0, -1), Vec3(0, 0, 0), Vec3(1, 0, 0), Vec2{});
-
+	// std::cout << "exp distance: " << exp.distance << std::endl;
 	PT::Trace ret =
 		try_intersect(Vec3(0, 0, 0), Vec3(1, 0, 0), Vec3(0, 1, 0), Vec3(1, 0, 0), Vec3(1, 0, 0), Vec3(1, 0, 0), ray);
+	// std::cout << "ret distance: " << ret.distance << std::endl;
 
 	if (auto diff = Test::differs(ret, exp)) {
 		throw Test::error("Trace does not match expected: " + diff.value());

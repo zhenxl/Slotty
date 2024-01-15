@@ -3,6 +3,7 @@
 
 #include "samplers.h"
 #include "tri_mesh.h"
+#include <algorithm>
 
 namespace PT {
 
@@ -14,8 +15,30 @@ BBox Triangle::bbox() const {
 
     // Beware of flat/zero-volume boxes! You may need to
     // account for that here, or later on in BBox::hit.
+	const float EPSILON = 1e-9;
+	Tri_Mesh_Vert v_0 = vertex_list[v0];
+    Tri_Mesh_Vert v_1 = vertex_list[v1];
+    Tri_Mesh_Vert v_2 = vertex_list[v2];
+	auto [x_min, x_max] = std::minmax({v_0.position.x, v_1.position.x, v_2.position.x});
+	auto [y_min, y_max] = std::minmax({v_0.position.y, v_1.position.y, v_2.position.y});
+	auto [z_min, z_max] = std::minmax({v_0.position.z, v_1.position.z, v_2.position.z});
+	if (x_min == x_max) {
+		x_min -= EPSILON;
+		x_max += EPSILON;
+	}
 
-    BBox box;
+	if (y_min == y_max) {
+		y_min -= EPSILON;
+		y_max += EPSILON;
+	}
+
+	if (z_min == z_max) {
+		z_min -= EPSILON;
+		z_min += EPSILON;
+	}
+
+
+    BBox box{Vec3{x_min, y_min, z_min}, Vec3{x_max, y_max, z_max}};
     return box;
 }
 
@@ -26,22 +49,38 @@ Trace Triangle::hit(const Ray& ray) const {
     Tri_Mesh_Vert v_0 = vertex_list[v0];
     Tri_Mesh_Vert v_1 = vertex_list[v1];
     Tri_Mesh_Vert v_2 = vertex_list[v2];
-    (void)v_0;
-    (void)v_1;
-    (void)v_2;
-
+    Vec3 e1 = v_1.position - v_0.position;
+	Vec3 e2 = v_2.position - v_1.position; 
+	Vec3 s  = ray.point - v_0.position;
+	Vec3 d = ray.dir;
     // TODO (PathTracer): Task 2
     // Intersect the ray with the triangle defined by the three vertices.
+	float dividend = dot(cross(e1, d), e2);
+	if (dividend == 0.0f) {
+		Trace ret;
+		ret.hit = false;
+		return ret;
+	}
+	float u = dot(-cross(s, e2), d)  / dividend;
+	float v = dot(cross(e1, d), s)   / dividend;
+	float t = dot(-cross(s, e2), e1) / dividend;
+	Vec3 hit_pos    = v_0.position + u * e1 + v * e2; 
+	Vec3 hit_normal = u * v_1.normal + v * v_2.normal + (1- u - v) * v_0.normal;
+	Vec2 hit_uv     = u * v_1.uv + v * v_2.uv + (1- u - v) * v_0.uv;
 
     Trace ret;
     ret.origin = ray.point;
-    ret.hit = false;       // was there an intersection?
-    ret.distance = 0.0f;   // at what distance did the intersection occur?
-    ret.position = Vec3{}; // where was the intersection?
-    ret.normal = Vec3{};   // what was the surface normal at the intersection?
+    ret.hit = true;       // was there an intersection?
+    ret.distance = t * ray.dir.norm() ;   // at what distance did the intersection occur?
+    ret.position = hit_pos; // where was the intersection?
+    ret.normal = hit_normal;   // what was the surface normal at the intersection?
                            // (this should be interpolated between the three vertex normals)
-	ret.uv = Vec2{};	   // What was the uv associated with the point of intersection?
+	ret.uv = hit_uv;	   // What was the uv associated with the point of intersection?
 						   // (this should be interpolated between the three vertex uvs)
+
+	if (ret.distance < ray.dist_bounds.x || ret.distance > ray.dist_bounds.y) {
+		ret.hit = false;
+	}
     return ret;
 }
 

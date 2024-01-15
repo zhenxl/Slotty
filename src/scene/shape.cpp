@@ -1,6 +1,7 @@
 
 #include "shape.h"
 #include "../geometry/util.h"
+#include <iostream>
 
 namespace Shapes {
 
@@ -30,13 +31,49 @@ PT::Trace Sphere::hit(Ray ray) const {
     // but only the _later_ one is within ray.dist_bounds, you should
     // return that one!
 
+	float a = ray.dir.norm_squared();
+	float b = 2 * dot(ray.point, ray.dir);
+	float c = ray.point.norm_squared() - this->radius * this->radius;
+	float tmp = std::sqrt(b*b - 4 * a * c);
+	float t1 = (-b - tmp) / (2 * a);
+	float t2 = (-b + tmp) / (2 * a);
+
+	Vec3 p1 = ray.point + t1 * ray.dir;
+	float dis1 = ray.dir.norm() * t1;
+	Vec3 p2 = ray.point + t2 * ray.dir;
+	float dis2 = ray.dir.norm()  * t2;
+
+	Vec3 pos;
+	float dist;
+	float t;
+
+	if ((dis1 < ray.dist_bounds.x || dis1 > ray.dist_bounds.y) && (dis2 < ray.dist_bounds.x || dis2 > ray.dist_bounds.y)) {
+		PT::Trace ret;
+		ret.hit = false;
+		std:: cout << "not hit: " << t1 << " " << t2 <<  std::endl;
+		return ret;
+	}else if (dis1 < ray.dist_bounds.x || dis1 > ray.dist_bounds.y) {
+		pos = p2;
+		dist = dis2;
+		t = t2;
+	} else if (dis2 < ray.dist_bounds.x || dis2 > ray.dist_bounds.y) {
+		pos = p1;
+		dist = dis1;
+		t = t1;
+	} else {
+		pos = p1;
+		dist = dis1;
+		t = t1;
+	}
+
+
     PT::Trace ret;
     ret.origin = ray.point;
-    ret.hit = false;       // was there an intersection?
-    ret.distance = 0.0f;   // at what distance did the intersection occur?
-    ret.position = Vec3{}; // where was the intersection?
-    ret.normal = Vec3{};   // what was the surface normal at the intersection?
-	ret.uv = Vec2{}; 	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
+    ret.hit = true;       // was there an intersection?
+    ret.distance = dist;   // at what distance did the intersection occur?
+    ret.position = pos; // where was the intersection?
+    ret.normal = pos.unit();   // what was the surface normal at the intersection?
+	ret.uv = uv(ray.point + t * ray.dir); 	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
     return ret;
 }
 
