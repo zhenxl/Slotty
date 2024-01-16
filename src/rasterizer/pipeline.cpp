@@ -385,7 +385,7 @@ auto Pipeline<p, P, flags>::SutherlandHodgman_clip_triangle(const Vec4 &a, const
 	}
 
 
-	for(int i = 0 ; i < polygon.Size(); i++) {
+	for(uint32_t i = 0 ; i < polygon.Size(); i++) {
 		if (polygon[i].pos.w <= 0.0f) {
 			polygon.Clear();
 			break;
@@ -474,8 +474,8 @@ void Pipeline<p, P, flags>::clip_triangle(
 							vb.clip_position,
 							vc.clip_position,
 							(clipCode0 ^ clipCode1) | (clipCode1 ^ clipCode2) | (clipCode2 ^ clipCode0));
-			std::vector<const ShadedVertex> clip_buffer(polygon.Size());
-			for(int j = 0; j < polygon.Size(); j++) {
+			std::vector<ShadedVertex> clip_buffer(polygon.Size());
+			for(uint32_t j = 0; j < polygon.Size(); j++) {
 				auto weight = polygon[j].distance;
 
 				if (weight.x == 1.0f) {
@@ -500,7 +500,7 @@ void Pipeline<p, P, flags>::clip_triangle(
 				}
 			}
 
-			for (int j = 2; j < polygon.Size(); j++) {
+			for (uint32_t j = 2; j < polygon.Size(); j++) {
 				auto& v0 = clip_buffer[0];
 				auto& v1 = clip_buffer[j-1];
 				auto& v2 = clip_buffer[j];

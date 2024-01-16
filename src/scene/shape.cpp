@@ -20,6 +20,7 @@ BBox Sphere::bbox() const {
 }
 
 PT::Trace Sphere::hit(Ray ray) const {
+	// std::cout << "now hit sphere" << std::endl;
 	//A3T2 - sphere hit
 
     // TODO (PathTracer): Task 2
@@ -31,50 +32,88 @@ PT::Trace Sphere::hit(Ray ray) const {
     // but only the _later_ one is within ray.dist_bounds, you should
     // return that one!
 
-	float a = ray.dir.norm_squared();
-	float b = 2 * dot(ray.point, ray.dir);
-	float c = ray.point.norm_squared() - this->radius * this->radius;
-	float tmp = std::sqrt(b*b - 4 * a * c);
-	float t1 = (-b - tmp) / (2 * a);
-	float t2 = (-b + tmp) / (2 * a);
+	// float a = ray.dir.norm_squared();
+	// float b = 2 * dot(ray.point, ray.dir);
+	// float c = ray.point.norm_squared() - this->radius * this->radius;
+	// float tmp = std::sqrt(b*b - 4 * a * c);
+	// float t1 = (-b - tmp) / (2 * a);
+	// float t2 = (-b + tmp) / (2 * a);
 
-	Vec3 p1 = ray.point + t1 * ray.dir;
-	float dis1 = ray.dir.norm() * t1;
-	Vec3 p2 = ray.point + t2 * ray.dir;
-	float dis2 = ray.dir.norm()  * t2;
+	// Vec3 p1 = ray.point + t1 * ray.dir;
+	// float dis1 = ray.dir.norm() * t1;
+	// Vec3 p2 = ray.point + t2 *ray.dir;
+	// float dis2 = ray.dir.norm()  * t2;
 
-	Vec3 pos;
-	float dist;
-	float t;
+	// Vec3 pos;
+	// float dist;
+	// float t;
+	// (void)t;
 
-	if ((dis1 < ray.dist_bounds.x || dis1 > ray.dist_bounds.y) && (dis2 < ray.dist_bounds.x || dis2 > ray.dist_bounds.y)) {
-		PT::Trace ret;
-		ret.hit = false;
-		std:: cout << "not hit: " << t1 << " " << t2 <<  std::endl;
-		return ret;
-	}else if (dis1 < ray.dist_bounds.x || dis1 > ray.dist_bounds.y) {
-		pos = p2;
-		dist = dis2;
-		t = t2;
-	} else if (dis2 < ray.dist_bounds.x || dis2 > ray.dist_bounds.y) {
-		pos = p1;
-		dist = dis1;
-		t = t1;
-	} else {
-		pos = p1;
-		dist = dis1;
-		t = t1;
+	// if (dis2 < ray.dist_bounds.x || dis1 > ray.dist_bounds.y) {
+	// 	 PT::Trace ret;
+	// 	 ret.hit = false;
+	// 	//  std::cout << "not hit" << std::endl;
+	// 	 return ret;
+	// }
+
+	// if (dis1 < ray.dist_bounds.x && dis2 > ray.dist_bounds.y) {
+	// 	 PT::Trace ret;
+	// 	 ret.hit = false;
+	// 	// std::cout << "not hit" << std::endl;
+	// 	 return ret;
+	// }
+
+	// // if ((dis1 < ray.dist_bounds.x || dis1 > ray.dist_bounds.y) && (dis2 < ray.dist_bounds.x || dis2 > ray.dist_bounds.y)) {
+	// // 	// PT::Trace ret;
+	// // 	// ret.hit = false;
+	// // 	// std:: cout << "not hit: " << t1 << " " << t2 <<  std::endl;
+	// // 	// return ret;
+	// // }else 
+	// if (dis1 < ray.dist_bounds.x ) {
+	// 	pos = p2;
+	// 	dist = dis2;
+	// 	 t = t2;
+	// } else {
+	// 	pos = p1;
+	// 	dist = dis1;
+	// 	t = t1;
+	// }
+
+
+    // PT::Trace ret;
+    // ret.origin = ray.point;
+    // ret.hit = true;       // was there an intersection?
+	// // dist = 0.0;
+    // ret.distance = dist;   // at what distance did the intersection occur?
+    // ret.position = pos; // where was the intersection?
+    // ret.normal   = pos;   // what was the surface normal at the intersection?
+	// ret.uv = uv(ray.point + t * ray.dir); 	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
+    // return ret;
+	PT::Trace ret;
+	ret.origin = ray.point;
+
+	auto od = dot(ray.point, ray.dir);
+	auto d_square = ray.dir.unit().norm_squared();
+	auto discriminant = 4 * od * od - 4 * d_square * (ray.point.norm_squared() - radius * radius);
+	if (discriminant < 0) {
+	ret.hit = false;
+	return ret;
 	}
+	auto half_root = std::sqrt(discriminant) / 2 * d_square;
+	auto t = -od /d_square  - half_root;
+	if (ray.dist_bounds.x > t || t > ray.dist_bounds.y)
+	t = -od/d_square + half_root;
+	if (ray.dist_bounds.x > t || t > ray.dist_bounds.y) {
+	ret.hit = false;
+	return ret;
+  }
 
-
-    PT::Trace ret;
-    ret.origin = ray.point;
-    ret.hit = true;       // was there an intersection?
-    ret.distance = dist;   // at what distance did the intersection occur?
-    ret.position = pos; // where was the intersection?
-    ret.normal = pos.unit();   // what was the surface normal at the intersection?
-	ret.uv = uv(ray.point + t * ray.dir); 	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
-    return ret;
+  ret.hit = true;       // was there an intersection?
+  ret.distance = t;   // at what distance did the intersection occur?
+  ret.position = ray.at(t); // where was the intersection?
+  ret.normal = ret.position.unit();   // what was the surface normal at the intersection?
+  ret.uv = uv(ray.point + t * ray.dir);
+  return ret;
 }
 
 Vec3 Sphere::sample(RNG &rng, Vec3 from) const {

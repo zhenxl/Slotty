@@ -311,7 +311,7 @@ void Halfedge_Mesh::triangulate_one(FaceRef face) {
 	Vec3 normal = face->normal();
 	std::vector<int> pre(n), nxt(n);
 	std::set<int> candidates;//candidates for ear vertex
-	for(int i = 0; i < n; i++) {
+	for(uint32_t i = 0; i < n; i++) {
 		pre[i] = (i + n - 1) % n;
 		nxt[i] = (i+ 1) % n;
 
@@ -319,7 +319,7 @@ void Halfedge_Mesh::triangulate_one(FaceRef face) {
 			candidates.insert(i);
 		}
 	}
-	int polygon_cnt = 0;
+	size_t polygon_cnt = 0;
 	while (polygon_cnt < n -3 && candidates.size()) {
 		int k  = *candidates.begin();
 		candidates.erase(k);

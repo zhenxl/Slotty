@@ -4,6 +4,7 @@
 #include "samplers.h"
 #include "tri_mesh.h"
 #include <algorithm>
+#include <iostream>
 
 namespace PT {
 
@@ -44,7 +45,7 @@ BBox Triangle::bbox() const {
 
 Trace Triangle::hit(const Ray& ray) const {
 	//A3T2
-	
+	// std::cout << "now hit triangle: " << std::endl;
 	// Each vertex contains a postion and surface normal
     Tri_Mesh_Vert v_0 = vertex_list[v0];
     Tri_Mesh_Vert v_1 = vertex_list[v1];
@@ -65,7 +66,7 @@ Trace Triangle::hit(const Ray& ray) const {
 	float v = dot(cross(e1, d), s)   / dividend;
 	float t = dot(-cross(s, e2), e1) / dividend;
 	Vec3 hit_pos    = v_0.position + u * e1 + v * e2; 
-	Vec3 hit_normal = u * v_1.normal + v * v_2.normal + (1- u - v) * v_0.normal;
+	Vec3 hit_normal = u* v_1.normal + v * v_2.normal + (1- u - v) * v_0.normal;
 	Vec2 hit_uv     = u * v_1.uv + v * v_2.uv + (1- u - v) * v_0.uv;
 
     Trace ret;
