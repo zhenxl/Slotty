@@ -33,7 +33,7 @@ private:
 	bool render_ray_log = false;
 	bool visualize_bvh = false;
 	uint32_t bvh_level = 0;
-	uint32_t bvh_levels = 0;
+	uint32_t bvh_levels = 10;
 };
 
 } // namespace Gui

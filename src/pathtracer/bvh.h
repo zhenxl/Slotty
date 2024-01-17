@@ -34,6 +34,7 @@ public:
 
 	BBox bbox() const;
 	Trace hit(const Ray& ray) const;
+	void find_closest_hit(const Ray& ray, size_t rt, Trace& closest) const;
 
 	template<typename P = Primitive>
 	typename std::enable_if<std::is_copy_assignable_v<P>, BVH<P>>::type copy() const;

@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
-#include <ostream>
+#include <iostream>
 #include <vector>
 
 #include "mat4.h"
@@ -86,7 +86,20 @@ struct BBox {
 		// [times.x,times.y], update times with the new intersection times.
 		// This means at least one of tmin and tmax must be within the range
 
-		return false;
+		auto intersects = [&](size_t dim) {
+			auto tL = (min[dim] - ray.point[dim]) / ray.dir[dim];
+			auto tH = (max[dim] - ray.point[dim]) / ray.dir[dim];
+			if (tL > tH) std::swap(tL, tH);
+			if(tL > times.y || tH < times.x) return false;
+			if (tL > times.x) times.x = tL;
+			if (tH < times.y) times.y = tH;
+			return true;
+		};
+
+		for (size_t i = 0; i < 3; i++) {
+			if (!intersects(i)) return false;
+		}
+		return true;
 	}
 
 	/// Get the eight corner points of the bounding box
