@@ -9,7 +9,7 @@
 namespace PT {
 
 constexpr bool SAMPLE_AREA_LIGHTS = false;
-constexpr bool RENDER_NORMALS = true;
+constexpr bool RENDER_NORMALS = false;
 constexpr bool LOG_CAMERA_RAYS = false;
 constexpr bool LOG_AREA_LIGHT_RAYS = false;
 static thread_local RNG log_rng(0x15462662); //separate RNG for logging a fraction of rays to avoid changing result when logging enabled
@@ -17,27 +17,34 @@ static thread_local RNG log_rng(0x15462662); //separate RNG for logging a fracti
 Spectrum Pathtracer::sample_direct_lighting_task4(RNG &rng, const Shading_Info& hit) {
 	//A3T4: Pathtracer - direct light sampling (basic sampling)
 
-	// This function computes a single-sample Monte Carlo estimate of the _direct_ lighting
-	// at our ray intersection point by sampling the BSDF.
+  // This function computes a single-sample Monte Carlo estimate of the _direct_ lighting
+  // at our ray intersection point by sampling the BSDF.
 
-	//NOTE: this function and sample_indirect_lighting() perform very similar tasks.
+  //NOTE: this function and sample_indirect_lighting() perform very similar tasks.
 
-    // Compute exact amount of light coming from delta lights:
-	//  (these don't need to be sampled)
-    Spectrum radiance = sum_delta_lights(hit);
+  // Compute exact amount of light coming from delta lights:
+  //  (these don't need to be sampled)
+  Spectrum radiance = sum_delta_lights(hit);
 
-	//TODO: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
+  //DONE: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
+  Materials::Scatter scatter = hit.bsdf.scatter(rng, hit.out_dir, hit.uv);
 
-	//TODO: rotate that direction into world coordinates
+  //DONE: rotate that direction into world coordinates
+  Vec3 in_dir = hit.object_to_world.rotate(scatter.direction);
 
-	//TODO: construct a ray travelling in that direction
-	// NOTE: because we want emitted light only, can use depth = 0 for the ray
+  //DONE: construct a ray travelling in that direction
+  // NOTE: because we want emitted light only, can use depth = 0 for the ray
+  Ray ray(hit.pos, in_dir);
+  ray.dist_bounds.x = EPS_F;
 
-	//TODO: trace() the ray to get the emitted light (first part of the return value)
+  //DONE: trace() the ray to get the emitted light (first part of the return value)
+  Spectrum emitted = trace(rng, ray).first;
 
-	//TODO: weight properly depending on the probability of the sampled scattering direction and add to radiance
+  //DONE: weight properly depending on the probability of the sampled scattering direction and add to radiance
+  float pdf =  hit.bsdf.pdf(hit.out_dir, scatter.direction);
+  radiance += emitted / pdf * scatter.attenuation;
 
-	return radiance;
+  return radiance;
 }
 
 Spectrum Pathtracer::sample_direct_lighting_task6(RNG &rng, const Shading_Info& hit) {
@@ -65,17 +72,23 @@ Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit)
 	//NOTE: this function and sample_direct_lighting_task4() perform very similar tasks.
 
 	//TODO: ask hit.bsdf to sample an in direction that would scatter out along hit.out_dir
+	Materials::Scatter scatter = hit.bsdf.scatter(rng, hit.out_dir, hit.uv);
 
 	//TODO: rotate that direction into world coordinates
+	Vec3 in_dir = hit.object_to_world.rotate(scatter.direction);
 
 	//TODO: construct a ray travelling in that direction
 	// NOTE: be sure to reduce the ray depth! otherwise infinite recursion is possible
+	Ray ray{hit.pos, in_dir};
+	ray.dist_bounds.x = EPS_F;
+	ray.depth = hit.depth - 1;
 
 	//TODO: trace() the ray to get the reflected light (the second part of the return value)
+	Spectrum reflected_light = trace(rng, ray).second;
 
 	//TODO: weight properly depending on the probability of the sampled scattering direction and set radiance
+	Spectrum radiance = (reflected_light * scatter.attenuation)/ hit.bsdf.pdf(hit.out_dir, scatter.direction);
 
-	Spectrum radiance;
     return radiance;
 }
 
