@@ -41,7 +41,7 @@ Spectrum Pathtracer::sample_direct_lighting_task4(RNG &rng, const Shading_Info& 
   Spectrum emitted = trace(rng, ray).first;
 
   //DONE: weight properly depending on the probability of the sampled scattering direction and add to radiance
-  float pdf =  hit.bsdf.pdf(hit.out_dir, scatter.direction);
+  float pdf =  hit.bsdf.is_specular()? 1: hit.bsdf.pdf(hit.out_dir, scatter.direction);
   radiance += emitted / pdf * scatter.attenuation;
 
   return radiance;
@@ -87,7 +87,8 @@ Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit)
 	Spectrum reflected_light = trace(rng, ray).second;
 
 	//TODO: weight properly depending on the probability of the sampled scattering direction and set radiance
-	Spectrum radiance = (reflected_light * scatter.attenuation)/ hit.bsdf.pdf(hit.out_dir, scatter.direction);
+	float pdf = hit.bsdf.is_specular() ? 1.0: hit.bsdf.pdf(hit.out_dir, scatter.direction);
+	Spectrum radiance = (reflected_light * scatter.attenuation)/ pdf;
 
     return radiance;
 }
