@@ -10,7 +10,7 @@ namespace PT {
 
 constexpr bool SAMPLE_AREA_LIGHTS = false;
 constexpr bool RENDER_NORMALS = false;
-constexpr bool LOG_CAMERA_RAYS = false;
+constexpr bool LOG_CAMERA_RAYS = true;
 constexpr bool LOG_AREA_LIGHT_RAYS = false;
 static thread_local RNG log_rng(0x15462662); //separate RNG for logging a fraction of rays to avoid changing result when logging enabled
 
@@ -54,13 +54,30 @@ Spectrum Pathtracer::sample_direct_lighting_task6(RNG &rng, const Shading_Info& 
     // For task 6, we want to upgrade our direct light sampling procedure to also
     // sample area lights using mixture sampling.
 	Spectrum radiance = sum_delta_lights(hit);
+	Spectrum emitted;
+	if (rng.coin_flip(0.5f)) {
+		Materials::Scatter scatter = hit.bsdf.scatter(rng, hit.out_dir, hit.uv);
+		Vec3 in_dir = hit.object_to_world.rotate(scatter.direction);
 
+		float pdf = hit.bsdf.is_specular()? 1: hit.bsdf.pdf(hit.out_dir, scatter.direction);
+
+		Ray ray(hit.pos, in_dir);
+		ray.dist_bounds.x = EPS_F;
+		emitted = trace(rng, ray).first / pdf * scatter.attenuation;
+	} else {
+		Vec3 area_dir = sample_area_lights(rng, hit.pos);
+		float pdf = hit.bsdf.is_specular()? 1: area_lights_pdf(hit.pos, area_dir);
+		Spectrum attenuation = hit.bsdf.evaluate(hit.out_dir, hit.world_to_object.rotate(area_dir), hit.uv);
+		Ray ray(hit.pos, area_dir);
+		ray.dist_bounds.x = EPS_F;
+		emitted = trace(rng, ray).first / pdf * attenuation;
+	}
 	// Example of using log_ray():
 	if constexpr (LOG_AREA_LIGHT_RAYS) {
 		if (log_rng.coin_flip(0.001f)) log_ray(Ray(), 100.0f);
 	}
 
-	return radiance;
+	return radiance + emitted;
 }
 
 Spectrum Pathtracer::sample_indirect_lighting(RNG &rng, const Shading_Info& hit) {
