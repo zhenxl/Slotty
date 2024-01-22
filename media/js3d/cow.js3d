@@ -18,6 +18,12 @@
 			"translation":[0,2.5,0],
 			"rotation":[0,0,0,1],
 			"scale":[1.5,1.5,1.5]
+		},
+		"Transform":{
+			"parent":null,
+			"translation":[0,0,0],
+			"rotation":[0,0,0,1],
+			"scale":[1,1,1]
 		}
 	},
 	"cameras":{
@@ -40,6 +46,11 @@
 	"shapes":{},
 	"particles":{},
 	"textures":{
+		"Texture":{
+			"type":"Image",
+			"sampler":"nearest",
+			"image":"../doge.exr"
+		},
 		"white":{
 			"type":"Constant",
 			"color":[1,1,1],
@@ -57,7 +68,13 @@
 		}
 	},
 	"delta_lights":{},
-	"env_lights":{},
+	"env_lights":{
+		"Env Light":{
+			"type":"Sphere",
+			"intensity":1,
+			"radiance":"Texture"
+		}
+	},
 	"instances":{
 		"cameras":{
 			"Camera_instance":{
@@ -91,7 +108,13 @@
 		"shapes":{},
 		"particles":{},
 		"delta_lights":{},
-		"env_lights":{}
+		"env_lights":{
+			"Env Light Instance":{
+				"transform":"Transform",
+				"light":"Env Light",
+				"visible":true
+			}
+		}
 	}
 },"animator":{"FORMAT":"js3d-v1",
 "splines":{}}}

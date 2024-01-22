@@ -1,8 +1,9 @@
 
 #include "samplers.h"
 #include "../util/rand.h"
+#include <iostream>
 
-constexpr bool IMPORTANCE_SAMPLING = true;
+constexpr bool IMPORTANCE_SAMPLING = false;
 
 namespace Samplers {
 
@@ -89,8 +90,11 @@ Vec3 Sphere::Uniform::sample(RNG &rng) const {
 
     // Generate a uniformly random point on the unit sphere.
     // Tip: start with Hemisphere::Uniform
-
-    return Vec3{};
+	Vec3 dir = hemi.sample(rng);
+	if(rng.coin_flip(0.5f)) {
+		dir.y = -dir.y;
+	}
+    return dir;
 }
 
 float Sphere::Uniform::pdf(Vec3 dir) const {
@@ -111,8 +115,9 @@ Sphere::Image::Image(const HDR_Image& image) {
 Vec3 Sphere::Image::sample(RNG &rng) const {
 	if(!IMPORTANCE_SAMPLING) {
 		// Step 1: Uniform sampling
-		// Declare a uniform sampler and return its sample
-    	return Vec3{};
+		// Uniform::sample(rng);
+		auto uniform_sampler = Uniform();
+    	return uniform_sampler.sample(rng);
 	} else {
 		// Step 2: Importance sampling
 		// Use your importance sampling data structure to generate a sample direction.
@@ -125,7 +130,8 @@ float Sphere::Image::pdf(Vec3 dir) const {
     if(!IMPORTANCE_SAMPLING) {
 		// Step 1: Uniform sampling
 		// Declare a uniform sampler and return its pdf
-    	return 0.f;
+		auto uniform_sampler = Uniform();
+    	return uniform_sampler.pdf(dir);
 	} else {
 		// A3T7 - image sampler importance sampling pdf
 		// What is the PDF of this distribution at a particular direction?

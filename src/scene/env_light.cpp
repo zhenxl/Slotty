@@ -1,6 +1,7 @@
 
 #include "env_light.h"
 #include "shape.h"
+#include <iostream>
 
 namespace Environment_Lights {
 

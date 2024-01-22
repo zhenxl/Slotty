@@ -24,6 +24,85 @@ struct SAHBucketData {
 };
 
 template<typename Primitive>
+void BVH<Primitive>::sah_split(size_t node, size_t max_leaf_size) {
+	if (nodes[node].size <= max_leaf_size) {
+		// nodes[node].l = nodes[node].r = -1;
+		return;
+	}
+	auto cost = FLT_MAX;
+	const int n_buckets = 16;
+	BBox left_box, right_box;
+	int axis = -1;
+	int right_count = -1;
+    std::vector<SAHBucketData> buckets(n_buckets);
+	Node& cur_node = nodes[node];
+	for (auto dim: {0, 1, 2}) {
+		for(size_t i = cur_node.start; i < cur_node.start + cur_node.size; i++) {
+			BBox box = primitives[i].bbox();
+			Vec3 centor = box.center();
+			const auto ratio = (centor[dim] - cur_node.bbox.min[dim]) / cur_node.bbox.diagonal()[dim];
+			auto index = int(n_buckets * ratio);
+
+			if (index == n_buckets) index = n_buckets - 1;
+
+			++buckets[index].num_prims;
+			buckets[index].bb.enclose(box);
+		}
+
+		// Calculate cumulative distribution of bounding volumes [left to right]
+		std::vector<BBox> cumulative_buckets(n_buckets);
+		cumulative_buckets[0] = buckets[0].bb;
+		for (auto i = 1; i < n_buckets; ++i)
+		{
+			cumulative_buckets[i] = cumulative_buckets[i - 1];
+			cumulative_buckets[i].enclose(buckets[i].bb);
+		}
+
+		BBox b1;
+		int count1 = 0;
+
+		// Calculate cost of splitting the bounding volumes [right to left]
+		for (auto i = n_buckets - 1; i >= 1; --i)
+		{
+			b1.enclose(buckets[i].bb);
+			count1 += buckets[i].num_prims;
+
+			auto count0 = cur_node.size - count1;
+			auto sum = count0 * cumulative_buckets[i - 1].surface_area() + count1 * b1.surface_area();
+
+			// Surface area cost weighted by number of elements in a bucket
+			auto current_cost = .125f + sum / cur_node.bbox.surface_area();
+
+			if (cost > current_cost)
+			{
+				left_box = cumulative_buckets[i - 1];
+				right_box = b1;
+				cost = current_cost;
+				right_count = count1;
+				axis = dim;
+			}
+		}
+
+		std::fill(buckets.begin(), buckets.end(), SAHBucketData());
+	}
+	auto begin = primitives.begin() + cur_node.start;
+	auto end   = primitives.begin() + cur_node.start + cur_node.size;
+	auto mid   = primitives.begin() + cur_node.start + cur_node.size - right_count;
+
+	auto left_node  = new_node(left_box, cur_node.start, cur_node.size- right_count);
+	auto right_node = new_node(right_box, cur_node.start + cur_node.size - right_count, right_count);
+	nodes[node].l = left_node;
+	nodes[node].r = right_node;
+
+	std::nth_element(begin, mid, end, [axis](Primitive& l , Primitive& r){
+				return l.bbox().center()[axis] <  r.bbox().center()[axis];
+	});
+
+	sah_split(left_node, max_leaf_size);
+	sah_split(right_node, max_leaf_size);
+}
+
+template<typename Primitive>
 void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size) {
 	//A3T3 - build a bvh
 	// std::cout << "now in build bvh" << std::endl;
@@ -31,131 +110,18 @@ void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
     nodes.clear();
     primitives = std::move(prims);
 	// std::cout << "init primitives" << std::endl;
-
-	std::vector<size_t> indices(primitives.size());
 	// std::cout << "size: " << primitives.size() << std::endl;
 
     // Construct a BVH from the given vector of primitives and maximum leaf
     // size configuration.
 
 	//TODO
-	std::queue<size_t> queue;
 	size_t r = new_node({}, 0, primitives.size());
-	queue.push(r);
-	// std::cout << "init queue" << std::endl;
-	while(!queue.empty()) {
-		// std::cout << "not queue empty " << queue.size() << std::endl;
-		size_t root_idx = queue.front();
-		Node& root = nodes[root_idx];
-		queue.pop();
-		if (root.size <= max_leaf_size) {
-			for(size_t i = root.start; i <root.start + root.size; i++) {
-				nodes[root_idx].bbox.enclose(primitives[i].bbox());
-			}
-		} else {
-
-			// std::cout <<"now create inter node" << std::endl;
-			float best_cost = FLT_MAX;
-			std::set<size_t> best_left_fit_set;
-			const auto p_begin = static_cast<ptrdiff_t> (root.start);
-			const auto p_end = static_cast<ptrdiff_t> (root.start + root.size);
-			std::iota(indices.begin() + p_begin, indices.begin() + p_end, p_begin);
-			// std::cout <<"before find partition" << std::endl;
-			for(size_t dim = 0; dim < 3; dim++) {
-				size_t bucket_num = 12;
-				if (root.size < bucket_num) {
-					bucket_num = root.size;
-				}
-				std::vector<SAHBucketData> buckets(bucket_num);
-				std::sort(indices.begin() + p_begin, indices.begin() + p_end,
-                [this, dim](int l, int r) {
-                  return primitives[l].bbox().center()[dim] < primitives[r].bbox().center()[dim];
-                });
-				size_t inter_cnt = root.size / bucket_num; 
-				for(size_t i = 0; i < bucket_num; i++) {
-					for(size_t j = root.start + i* inter_cnt; j <  root.start + (i+1)*inter_cnt; j++) {
-						buckets[i].num_prims++;
-						buckets[i].bb.enclose(primitives[indices[j]].bbox());
-					}
-				}
-				for(size_t j = root.start + (bucket_num ) * inter_cnt; j < root.start + root.size; j++) {
-					buckets[bucket_num - 1].num_prims++;
-					buckets[bucket_num - 1].bb.enclose(primitives[j].bbox());
-				}
-
-				float cost[bucket_num -1];
-				for(size_t i = 1; i < bucket_num; i++) {
-					BBox b0, b1;
-					int count0 = 0, count1 = 0;
-					for(size_t j = 0; j < i; j++) {
-						b0.enclose(buckets[i].bb);
-						count0 +=1;
-					}
-					for(size_t j = i; j < bucket_num; j++) {
-						b1.enclose(buckets[j].bb);
-						count1 += 1;
-					}
-					cost[i-1] = count0 * b0.surface_area() + count1 * b1.surface_area();
-				}
-
-				float min_cost = cost[0];
-				size_t min_cost_bucket = 1;
-				for(size_t i = 1; i < bucket_num - 1; i++) {
-					if (cost[i] < min_cost) {
-						min_cost = cost[i];
-						min_cost_bucket = i+1;
-					}
-				}
-
-				if(min_cost < best_cost) {
-					best_cost = min_cost;
-					std::set<size_t> best_left_set{indices.begin() + p_begin, indices.begin() + p_begin + min_cost_bucket * inter_cnt};
-					best_left_fit_set = std::move(best_left_set);
-				}
-
-			}
-			// std::cout << "get best partition" << std::endl;
-
-			//now apply best partition
-			{
-				size_t left_cursor = p_begin;
-				for(auto index: best_left_fit_set) {
-					if (left_cursor != index) {
-						std::swap(primitives[left_cursor], primitives[index]);
-					}
-					left_cursor ++;
-				}
-
-				size_t left_size = best_left_fit_set.size();
-				BBox left_box, right_box;
-				for(size_t i = root.start; i < root.start + left_size; i++) {
-					left_box.enclose(primitives[i].bbox());
-				}
-				size_t right_start = root.start + left_size;
-				size_t right_size  = root.size - left_size;
-				// std::cout << "left size: " << left_size << std::endl;
-				// std::cout << "right size: " << right_size << std::endl;
-
-				for(size_t i = right_start; i < right_start + right_size; i++) {
-					right_box.enclose(primitives[i].bbox());
-				}
-
-				size_t left_node = new_node(left_box, root.start, left_size);
-				size_t right_node = new_node(right_box, right_start, right_size);
-
-				nodes[root_idx].bbox.enclose(left_box);
-				nodes[root_idx].bbox.enclose(right_box);
-
-				nodes[root_idx].l = left_node;
-				nodes[root_idx].r = right_node;
-
-				queue.push(left_node);
-			    queue.push(right_node);
-			}
-		}
+	for (auto& primitive: primitives) {
+		nodes[r].bbox.enclose(primitive.bbox());
 	}
-	// std::cout << "build finished" << std::endl;
-
+	sah_split(r, max_leaf_size);
+	
 }
 
 template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {

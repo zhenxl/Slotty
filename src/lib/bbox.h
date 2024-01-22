@@ -46,6 +46,10 @@ struct BBox {
 		return (min + max) * 0.5f;
 	}
 
+	Vec3 diagonal() const {
+		return max - min;
+	}
+
 	// Check whether box has no volume
 	bool empty() const {
 		return min.x > max.x || min.y > max.y || min.z > max.z;

@@ -8,7 +8,7 @@
 
 namespace PT {
 
-constexpr bool SAMPLE_AREA_LIGHTS = false;
+constexpr bool SAMPLE_AREA_LIGHTS = true;
 constexpr bool RENDER_NORMALS = false;
 constexpr bool LOG_CAMERA_RAYS = true;
 constexpr bool LOG_AREA_LIGHT_RAYS = false;
@@ -63,14 +63,14 @@ Spectrum Pathtracer::sample_direct_lighting_task6(RNG &rng, const Shading_Info& 
 
 		Ray ray(hit.pos, in_dir);
 		ray.dist_bounds.x = EPS_F;
-		emitted = trace(rng, ray).first / pdf * scatter.attenuation;
+		emitted = trace(rng, ray).first / pdf * scatter.attenuation * 2.0f;
 	} else {
 		Vec3 area_dir = sample_area_lights(rng, hit.pos);
 		float pdf = hit.bsdf.is_specular()? 1: area_lights_pdf(hit.pos, area_dir);
 		Spectrum attenuation = hit.bsdf.evaluate(hit.out_dir, hit.world_to_object.rotate(area_dir), hit.uv);
 		Ray ray(hit.pos, area_dir);
 		ray.dist_bounds.x = EPS_F;
-		emitted = trace(rng, ray).first / pdf * attenuation;
+		emitted = trace(rng, ray).first / pdf * attenuation * 2.0f;
 	}
 	// Example of using log_ray():
 	if constexpr (LOG_AREA_LIGHT_RAYS) {

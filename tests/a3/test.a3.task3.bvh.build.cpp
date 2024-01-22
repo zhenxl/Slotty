@@ -124,5 +124,6 @@ Test test_a3_task3_bvh_build_simple("a3.task3.bvh.build.simple", []() {
 							};
 
 	expect_bvh(verts, 2, 1);
+	// std::cout << " after this bvh 2 1" << std::endl;
 	expect_bvh(verts, 4, 2);
 });
