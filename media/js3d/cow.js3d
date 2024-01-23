@@ -49,7 +49,7 @@
 		"Texture":{
 			"type":"Image",
 			"sampler":"nearest",
-			"image":"../doge.exr"
+			"image":"../ennis.exr"
 		},
 		"white":{
 			"type":"Constant",

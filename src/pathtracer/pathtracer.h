@@ -56,7 +56,8 @@ private:
 	void cancel();
 
 	//a 'Tile' is a region of the image (in both pixel and sample space) to trace:
-	struct Tile {
+	struct 
+	Tile {
 		uint32_t seed = 0; //RNG seed to use
 		uint32_t x_begin = 0, x_end = 0;
 		uint32_t y_begin = 0, y_end = 0;
